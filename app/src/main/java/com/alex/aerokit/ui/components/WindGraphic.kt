@@ -4,7 +4,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.Dp
@@ -16,76 +18,103 @@ fun WindGraphic(
     runwayHeading: Int,
     windDir: Int,
     windSpeed: Int,
-    crossLimit: Int?,
+    crossLimit: Int = 0,
+    showArrow: Boolean,
     modifier: Modifier = Modifier,
-    size: Dp = 180.dp,
-    showArrow: Boolean = true
+    size: Dp = 180.dp
 ) {
-    val cyan = Color(0xFF00BCD4)
-
-    // Arrow color logic
+    // Calculate wind/runway angle (degrees)
     val delta = ((windDir - runwayHeading + 360) % 360).toFloat()
     val angleRad = Math.toRadians(delta.toDouble())
-    val crosswind = windSpeed * sin(angleRad)
-    val arrowOverLimit = crossLimit != null && crossLimit > 0 && abs(crosswind) > crossLimit
-    val arrowColor = if (arrowOverLimit) Color.Red else cyan
 
     Box(
-        modifier = modifier.size(size).padding(8.dp),
+        modifier = modifier.size(size),
         contentAlignment = androidx.compose.ui.Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.toPx()
+            val h = w // square canvas
             val cx = w / 2
-            val cy = w / 2
-            val radius = w * 0.33f
+            val cy = h / 2
 
-            // Runway (vertical line)
-            drawLine(
-                color = Color.Gray,
-                start = Offset(cx, cy - radius),
-                end = Offset(cx, cy + radius),
-                strokeWidth = w * 0.09f,
-                cap = StrokeCap.Round
+            // ---- Draw runway as rounded rectangle ----
+            val runwayWidth = w * 0.20f
+            val runwayLength = w * 0.85f
+            val thresholdRadius = runwayWidth * 0.36f
+            val runwayColor = Color(0xFF23252A)
+
+            // Runway main body (darker)
+            drawRoundRect(
+                color = runwayColor,
+                topLeft = Offset(cx - runwayWidth / 2, cy - runwayLength / 2),
+                size = Size(runwayWidth, runwayLength),
+                cornerRadius = CornerRadius(thresholdRadius, thresholdRadius)
             )
 
-            if (
-                showArrow &&
-                windSpeed > 0 &&
-                (runwayHeading in 0..359) &&
-                (windDir in 0..359)
-            ) {
-                // Calculate FROM which direction wind comes: arrow points **to** center
-                val windAngle = Math.toRadians((windDir - runwayHeading).toDouble())
-                val tailX = cx + radius * sin(windAngle).toFloat()
-                val tailY = cy - radius * cos(windAngle).toFloat()
-                val headX = cx
-                val headY = cy
+            // Centerline (white, dashed)
+            val lineStep = runwayLength / 12f
+            val dashLength = lineStep * 0.6f
+            val dashWidth = runwayWidth * 0.10f
+            for (i in 0..10 step 2) {
+                val yStart = cy - runwayLength / 2 + i * lineStep
+                drawLine(
+                    color = Color.White,
+                    start = Offset(cx, yStart),
+                    end = Offset(cx, yStart + dashLength),
+                    strokeWidth = dashWidth,
+                    cap = StrokeCap.Round
+                )
+            }
 
-                // Main shaft
+            // ---- Draw wind arrow (if valid) ----
+            if (showArrow && windSpeed > 0) {
+                val arrowLen = w * 0.38f
+                val shaftWidth = w * 0.022f
+                val arrowColor = Color(0xFF2196F3)
+
+                // The arrow points **toward the center**
+                val arrowStart = Offset(
+                    cx + arrowLen * sin(angleRad).toFloat(),
+                    cy - arrowLen * cos(angleRad).toFloat()
+                )
+                val arrowEnd = Offset(cx, cy)
+
+                // Arrow shaft
                 drawLine(
                     color = arrowColor,
-                    start = Offset(tailX, tailY),
-                    end = Offset(headX, headY),
-                    strokeWidth = w * 0.05f,
+                    start = arrowStart,
+                    end = arrowEnd,
+                    strokeWidth = shaftWidth,
                     cap = StrokeCap.Round
                 )
 
-                // Arrowhead (always at center)
-                val arrowHead = w * 0.07f
-                val shaftAngle = atan2(headY - tailY, headX - tailX)
+                // Arrowhead
+                val headLength = w * 0.08f
+                val headAngle = Math.PI / 8
+                val dir = atan2(arrowEnd.y - arrowStart.y, arrowEnd.x - arrowStart.x)
                 val leftWing = Offset(
-                    (headX - arrowHead * cos(shaftAngle - 0.5f)).toFloat(),
-                    (headY - arrowHead * sin(shaftAngle - 0.5f)).toFloat()
+                    arrowEnd.x - headLength * cos(dir - headAngle).toFloat(),
+                    arrowEnd.y - headLength * sin(dir - headAngle).toFloat()
                 )
                 val rightWing = Offset(
-                    (headX - arrowHead * cos(shaftAngle + 0.5f)).toFloat(),
-                    (headY - arrowHead * sin(shaftAngle + 0.5f)).toFloat()
+                    arrowEnd.x - headLength * cos(dir + headAngle).toFloat(),
+                    arrowEnd.y - headLength * sin(dir + headAngle).toFloat()
                 )
-                drawLine(arrowColor, Offset(headX, headY), leftWing, strokeWidth = w * 0.025f, cap = StrokeCap.Round)
-                drawLine(arrowColor, Offset(headX, headY), rightWing, strokeWidth = w * 0.025f, cap = StrokeCap.Round)
+                drawLine(
+                    color = arrowColor,
+                    start = arrowEnd,
+                    end = leftWing,
+                    strokeWidth = shaftWidth * 0.8f,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = arrowColor,
+                    start = arrowEnd,
+                    end = rightWing,
+                    strokeWidth = shaftWidth * 0.8f,
+                    cap = StrokeCap.Round
+                )
             }
         }
     }
 }
-

@@ -128,15 +128,17 @@ fun WindComponentScreen() {
         )
 
         Spacer(Modifier.height(24.dp))
-        // Show headwind (or tailwind) above crosswind
-        Text(
-            headLabel,
-            style = MaterialTheme.typography.bodyLarge
-        )
-        Text(
-            "Crosswind: $crossLabel",
-            color = if (crossLimitExceeded) Color.Red else Color.Black,
-            style = MaterialTheme.typography.bodyLarge
-        )
+
+        if (canDrawArrow) {
+            Text(
+                headLabel,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                "Crosswind: $crossLabel",
+                color = if (crossLimitExceeded) Color.Red else Color.Black,
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
     }
 }
