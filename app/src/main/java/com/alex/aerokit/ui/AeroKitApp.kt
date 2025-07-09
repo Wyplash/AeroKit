@@ -10,6 +10,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.CompareArrows // or SwapHoriz, depending on what you pick
+import com.alex.aerokit.ui.screens.ConversionScreen
+import com.alex.aerokit.ui.screens.SettingsScreen
+import com.alex.aerokit.ui.screens.ToolsScreen
 
 
 @Composable
@@ -48,9 +51,9 @@ fun AeroKitApp() {
         ) {
             // Placeholder for each tab
             when (bottomTab) {
-                0 -> Text("Tools Screen Coming Soon", style = MaterialTheme.typography.headlineMedium)
-                1 -> Text("Conversion Screen Coming Soon", style = MaterialTheme.typography.headlineMedium)
-                2 -> Text("Settings Screen Coming Soon", style = MaterialTheme.typography.headlineMedium)
+                0 -> ToolsScreen()
+                1 -> ConversionScreen()
+                2 -> SettingsScreen()
             }
         }
     }
