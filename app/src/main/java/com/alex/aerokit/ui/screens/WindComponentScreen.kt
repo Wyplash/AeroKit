@@ -57,6 +57,7 @@ fun WindComponentScreen() {
     else if (headwind >= 0) "Headwind: ${abs(headwind.roundToInt())} kt"
     else "Tailwind: ${abs(headwind.roundToInt())} kt"
 
+    // Pass this to WindGraphic as a boolean!
     val crossLimitExceeded = canDrawArrow && crossLimit > 0 && abs(crosswind) > crossLimit
 
     Column(
@@ -108,7 +109,7 @@ fun WindComponentScreen() {
         OutlinedTextField(
             value = crossLimitInput,
             onValueChange = { crossLimitInput = it },
-            label = { Text("Crosswind Limit (kt, optional)") },
+            label = { Text("Crosswind Limit (kt)") },
             isError = crossLimitError != null,
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -123,7 +124,7 @@ fun WindComponentScreen() {
             runwayHeading = runwayDeg,
             windDir = windDirDeg,
             windSpeed = windSpeed,
-            crossLimit = crossLimit,
+            crossLimitExceeded = crossLimitExceeded, // Boolean, not Int!
             showArrow = canDrawArrow
         )
 

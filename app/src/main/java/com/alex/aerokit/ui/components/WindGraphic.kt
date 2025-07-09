@@ -13,12 +13,18 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.*
 
+/**
+ * Draws a stylized runway and wind arrow graphic.
+ * - The runway is always visible.
+ * - The arrow color turns red if crosswind limit is exceeded.
+ * - The arrow points **toward the center** from the wind direction.
+ */
 @Composable
 fun WindGraphic(
     runwayHeading: Int,
     windDir: Int,
     windSpeed: Int,
-    crossLimit: Int = 0,
+    crossLimitExceeded: Boolean,
     showArrow: Boolean,
     modifier: Modifier = Modifier,
     size: Dp = 180.dp
@@ -33,17 +39,16 @@ fun WindGraphic(
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.toPx()
-            val h = w // square canvas
+            val h = w // Always square for a symmetric runway
             val cx = w / 2
             val cy = h / 2
 
-            // ---- Draw runway as rounded rectangle ----
-            val runwayWidth = w * 0.20f
-            val runwayLength = w * 0.85f
+            // Draw runway body (dark gray, with rounded thresholds)
+            val runwayWidth = w * 0.25f
+            val runwayLength = w * 0.70f
             val thresholdRadius = runwayWidth * 0.36f
             val runwayColor = Color(0xFF23252A)
 
-            // Runway main body (darker)
             drawRoundRect(
                 color = runwayColor,
                 topLeft = Offset(cx - runwayWidth / 2, cy - runwayLength / 2),
@@ -51,11 +56,11 @@ fun WindGraphic(
                 cornerRadius = CornerRadius(thresholdRadius, thresholdRadius)
             )
 
-            // Centerline (white, dashed)
-            val lineStep = runwayLength / 12f
+            // Draw dashed centerline
+            val lineStep = runwayLength / 10f
             val dashLength = lineStep * 0.6f
-            val dashWidth = runwayWidth * 0.10f
-            for (i in 0..10 step 2) {
+            val dashWidth = runwayWidth * 0.13f
+            for (i in 0..9 step 2) {
                 val yStart = cy - runwayLength / 2 + i * lineStep
                 drawLine(
                     color = Color.White,
@@ -66,20 +71,20 @@ fun WindGraphic(
                 )
             }
 
-            // ---- Draw wind arrow (if valid) ----
+            // Draw wind arrow if fields are valid and wind speed > 0
             if (showArrow && windSpeed > 0) {
-                val arrowLen = w * 0.38f
+                val arrowLen = w * 0.36f
                 val shaftWidth = w * 0.022f
-                val arrowColor = Color(0xFF2196F3)
+                val arrowColor = if (crossLimitExceeded) Color.Red else Color(0xFF2196F3)
 
-                // The arrow points **toward the center**
+                // Arrow points **toward the center** from wind direction
                 val arrowStart = Offset(
                     cx + arrowLen * sin(angleRad).toFloat(),
                     cy - arrowLen * cos(angleRad).toFloat()
                 )
                 val arrowEnd = Offset(cx, cy)
 
-                // Arrow shaft
+                // Draw shaft
                 drawLine(
                     color = arrowColor,
                     start = arrowStart,
@@ -88,7 +93,7 @@ fun WindGraphic(
                     cap = StrokeCap.Round
                 )
 
-                // Arrowhead
+                // Draw arrowhead
                 val headLength = w * 0.08f
                 val headAngle = Math.PI / 8
                 val dir = atan2(arrowEnd.y - arrowStart.y, arrowEnd.x - arrowStart.x)

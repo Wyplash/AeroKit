@@ -28,7 +28,6 @@ fun validateRunway(input: String): String? = when {
 fun validateWindDir(input: String): String? = when {
     input.isEmpty() -> null
     input.any { !it.isDigit() } -> "Numbers only"
-    input.length > 3 -> "Too many digits"
     else -> {
         val n = input.toIntOrNull() ?: return "Invalid"
         if (n in 0..359) null else "Heading must be 0–359"
