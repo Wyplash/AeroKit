@@ -3,119 +3,140 @@ package com.alex.aerokit.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.alex.aerokit.ui.components.WindGraphic
+import com.alex.aerokit.util.parseRunwayInput
+import com.alex.aerokit.util.validateRunway
+import com.alex.aerokit.util.validateWindDir
 import kotlin.math.*
 
-/**
- * Main Wind Component tool screen.
- * Business logic and UI together for now.
- */
+fun validateWindSpeed(input: String): String? = when {
+    input.isEmpty() -> null
+    input.any { !it.isDigit() } -> "Numbers only"
+    else -> null
+}
+
+fun validateCrossLimit(input: String): String? = when {
+    input.isEmpty() -> null
+    input.any { !it.isDigit() } -> "Numbers only"
+    else -> null
+}
+
 @Composable
 fun WindComponentScreen() {
-    // 1. State
     var runwayInput by remember { mutableStateOf("") }
     var windDirInput by remember { mutableStateOf("") }
     var windSpeedInput by remember { mutableStateOf("") }
     var crossLimitInput by remember { mutableStateOf("") }
 
-    // 2. Derived/calculated state
-    val runwayHeading = parseRunway(runwayInput)
-    val windDir = windDirInput.toIntOrNull() ?: 0
+    val runwayError = validateRunway(runwayInput)
+    val windDirError = validateWindDir(windDirInput)
+    val windSpeedError = validateWindSpeed(windSpeedInput)
+    val crossLimitError = validateCrossLimit(crossLimitInput)
+
+    // Parsed values
+    val runwayDeg = parseRunwayInput(runwayInput)
+    val windDirDeg = windDirInput.toIntOrNull() ?: 0
     val windSpeed = windSpeedInput.toIntOrNull() ?: 0
-    val crossLimit = crossLimitInput.toFloatOrNull() ?: 0f
+    val crossLimit = crossLimitInput.toIntOrNull() ?: 0
 
-    // Wind math
-    val delta = ((windDir - runwayHeading + 360) % 360).toFloat()
-    val angleRad = Math.toRadians(delta.toDouble())
-    val crosswind = windSpeed * sin(angleRad)
-    val headwind = windSpeed * cos(angleRad)
+    // Only allow calc/arrow when all errors are null and non-blank
+    val canDrawArrow = runwayError == null && windDirError == null &&
+            windSpeedError == null && crossLimitError == null &&
+            runwayInput.isNotBlank() && windDirInput.isNotBlank() && windSpeedInput.isNotBlank()
 
-    // For text color
-    val absCross = abs(crosswind)
-    val isLimitExceeded = crossLimit > 0 && absCross > crossLimit
+    val deltaRad = Math.toRadians(((windDirDeg - runwayDeg + 360) % 360).toDouble())
+    val crosswind = if (canDrawArrow) windSpeed * sin(deltaRad) else 0.0
+    val headwind = if (canDrawArrow) windSpeed * cos(deltaRad) else 0.0
 
-    // Direction string
-    val crossStr = if (crosswind > 0.1) "RIGHT" else if (crosswind < -0.1) "LEFT" else ""
+    val crossLabel = if (!canDrawArrow) "--"
+    else "${abs(crosswind.roundToInt())} kt ${if (crosswind < 0) "Left" else "Right"}"
+    val headLabel = if (!canDrawArrow) "--"
+    else if (headwind >= 0) "Headwind: ${abs(headwind.roundToInt())} kt"
+    else "Tailwind: ${abs(headwind.roundToInt())} kt"
 
-    // 3. UI
+    val crossLimitExceeded = canDrawArrow && crossLimit > 0 && abs(crosswind) > crossLimit
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
     ) {
-        Text("Wind Component", style = MaterialTheme.typography.headlineSmall)
-        Spacer(Modifier.height(16.dp))
-
-        // Wind graphic
-        WindGraphic(
-            windDir = windDir,
-            windSpeed = windSpeed,
-            runwayHeading = runwayHeading,
-            size = 180.dp
-        )
-        Spacer(Modifier.height(16.dp))
-
         // Input fields
         OutlinedTextField(
             value = runwayInput,
             onValueChange = { runwayInput = it },
             label = { Text("Runway (09, 26, or 264°)") },
+            isError = runwayError != null,
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
+        runwayError?.let {
+            Text(it, color = Color.Red, style = MaterialTheme.typography.bodySmall)
+        }
         Spacer(Modifier.height(8.dp))
+
         OutlinedTextField(
             value = windDirInput,
             onValueChange = { windDirInput = it },
             label = { Text("Wind Direction (°)") },
+            isError = windDirError != null,
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
+        windDirError?.let {
+            Text(it, color = Color.Red, style = MaterialTheme.typography.bodySmall)
+        }
         Spacer(Modifier.height(8.dp))
+
         OutlinedTextField(
             value = windSpeedInput,
             onValueChange = { windSpeedInput = it },
             label = { Text("Wind Speed (kt)") },
+            isError = windSpeedError != null,
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
+        windSpeedError?.let {
+            Text(it, color = Color.Red, style = MaterialTheme.typography.bodySmall)
+        }
         Spacer(Modifier.height(8.dp))
+
         OutlinedTextField(
             value = crossLimitInput,
             onValueChange = { crossLimitInput = it },
             label = { Text("Crosswind Limit (kt, optional)") },
+            isError = crossLimitError != null,
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
+        crossLimitError?.let {
+            Text(it, color = Color.Red, style = MaterialTheme.typography.bodySmall)
+        }
         Spacer(Modifier.height(24.dp))
 
-        // Crosswind/Headwind results
+        // Always show runway. Show arrow only if valid.
+        WindGraphic(
+            runwayHeading = runwayDeg,
+            windDir = windDirDeg,
+            windSpeed = windSpeed,
+            crossLimit = crossLimit,
+            showArrow = canDrawArrow
+        )
+
+        Spacer(Modifier.height(24.dp))
+        // Show headwind (or tailwind) above crosswind
         Text(
-            text = if (windSpeed > 0)
-                "Crosswind: ${absCross.roundToInt()} kt $crossStr"
-            else
-                "Crosswind: --",
-            color = if (isLimitExceeded) Color.Red else MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.titleMedium
+            headLabel,
+            style = MaterialTheme.typography.bodyLarge
         )
         Text(
-            text = if (windSpeed > 0)
-                "Headwind: ${headwind.roundToInt()} kt"
-            else
-                "Headwind: --",
-            style = MaterialTheme.typography.titleMedium
+            "Crosswind: $crossLabel",
+            color = if (crossLimitExceeded) Color.Red else Color.Black,
+            style = MaterialTheme.typography.bodyLarge
         )
     }
-}
-
-// -- Helper to parse "09" → 90, "26" → 260, "264" → 264
-fun parseRunway(runway: String): Int {
-    val n = runway.toIntOrNull() ?: 0
-    return if (runway.length <= 2) (n.coerceIn(1,36) * 10) % 360
-    else ((n % 360) + 360) % 360
 }
