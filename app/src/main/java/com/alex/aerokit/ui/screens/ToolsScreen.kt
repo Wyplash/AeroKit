@@ -5,17 +5,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.alex.aerokit.ui.theme.ThemeController
+import com.alex.aerokit.util.Strings
 
 /**
  * Main tools tab with navigation for each aviation tool.
  */
 @Composable
-fun ToolsScreen() {
+fun ToolsScreen(themeController: ThemeController) {
     // Which tab is selected? (for multiple tools later)
     var selectedTab by remember { mutableStateOf(0) }
 
-    // Tab titles -- you can add more tools in the future!
-    val tabTitles = listOf("Wind Component")
+    // Tab titles (localized!) - must be inside the composable function
+    val tabTitles = listOf(Strings.windComponent(themeController.language))
 
     Column(Modifier.fillMaxSize()) {
         TabRow(selectedTabIndex = selectedTab) {
@@ -32,8 +34,8 @@ fun ToolsScreen() {
 
         // Show the correct tool based on tab
         when (selectedTab) {
-            0 -> WindComponentScreen()
-            // Later: 1 -> RadioRangeScreen(), 2 -> SomeOtherToolScreen(), etc.
+            0 -> WindComponentScreen(themeController) // Pass themeController if you want to localize this screen too
+            // Later: 1 -> RadioRangeScreen(themeController), etc.
         }
     }
 }

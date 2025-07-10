@@ -10,22 +10,17 @@ import com.alex.aerokit.ui.components.WindGraphic
 import com.alex.aerokit.util.parseRunwayInput
 import com.alex.aerokit.util.validateRunway
 import com.alex.aerokit.util.validateWindDir
+import com.alex.aerokit.util.validateWindSpeed
+import com.alex.aerokit.util.validateCrossLimit
+import com.alex.aerokit.ui.theme.ThemeController
+import com.alex.aerokit.ui.theme.AppLanguage
+import com.alex.aerokit.util.Strings
 import kotlin.math.*
 
-fun validateWindSpeed(input: String): String? = when {
-    input.isEmpty() -> null
-    input.any { !it.isDigit() } -> "Numbers only"
-    else -> null
-}
-
-fun validateCrossLimit(input: String): String? = when {
-    input.isEmpty() -> null
-    input.any { !it.isDigit() } -> "Numbers only"
-    else -> null
-}
-
 @Composable
-fun WindComponentScreen() {
+fun WindComponentScreen(themeController: ThemeController) {
+    val lang = themeController.language
+
     var runwayInput by remember { mutableStateOf("") }
     var windDirInput by remember { mutableStateOf("") }
     var windSpeedInput by remember { mutableStateOf("") }
@@ -42,7 +37,6 @@ fun WindComponentScreen() {
     val windSpeed = windSpeedInput.toIntOrNull() ?: 0
     val crossLimit = crossLimitInput.toIntOrNull() ?: 0
 
-    // Only allow calc/arrow when all errors are null and non-blank
     val canDrawArrow = runwayError == null && windDirError == null &&
             windSpeedError == null && crossLimitError == null &&
             runwayInput.isNotBlank() && windDirInput.isNotBlank() && windSpeedInput.isNotBlank()
@@ -52,12 +46,18 @@ fun WindComponentScreen() {
     val headwind = if (canDrawArrow) windSpeed * cos(deltaRad) else 0.0
 
     val crossLabel = if (!canDrawArrow) "--"
-    else "${abs(crosswind.roundToInt())} kt ${if (crosswind < 0) "Left" else "Right"}"
-    val headLabel = if (!canDrawArrow) "--"
-    else if (headwind >= 0) "Headwind: ${abs(headwind.roundToInt())} kt"
-    else "Tailwind: ${abs(headwind.roundToInt())} kt"
+    else "${abs(crosswind.roundToInt())} kt " +
+            if (crosswind < 0)
+                if (lang == AppLanguage.FRENCH) "Gauche" else "Left"
+            else
+                if (lang == AppLanguage.FRENCH) "Droite" else "Right"
 
-    // Pass this to WindGraphic as a boolean!
+    val headLabel = if (!canDrawArrow) "--"
+    else if (headwind >= 0)
+        Strings.headwind(abs(headwind.roundToInt()), lang)
+    else
+        Strings.tailwind(abs(headwind.roundToInt()), lang)
+
     val crossLimitExceeded = canDrawArrow && crossLimit > 0 && abs(crosswind) > crossLimit
 
     Column(
@@ -66,11 +66,10 @@ fun WindComponentScreen() {
             .padding(24.dp),
         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
     ) {
-        // Input fields
         OutlinedTextField(
             value = runwayInput,
             onValueChange = { runwayInput = it },
-            label = { Text("Runway (09, 26, or 264°)") },
+            label = { Text(Strings.runwayLabel(lang)) },
             isError = runwayError != null,
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -83,7 +82,7 @@ fun WindComponentScreen() {
         OutlinedTextField(
             value = windDirInput,
             onValueChange = { windDirInput = it },
-            label = { Text("Wind Direction (°)") },
+            label = { Text(Strings.windDirectionLabel(lang)) },
             isError = windDirError != null,
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -96,7 +95,7 @@ fun WindComponentScreen() {
         OutlinedTextField(
             value = windSpeedInput,
             onValueChange = { windSpeedInput = it },
-            label = { Text("Wind Speed (kt)") },
+            label = { Text(Strings.windSpeedLabel(lang)) },
             isError = windSpeedError != null,
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -109,7 +108,7 @@ fun WindComponentScreen() {
         OutlinedTextField(
             value = crossLimitInput,
             onValueChange = { crossLimitInput = it },
-            label = { Text("Crosswind Limit (kt)") },
+            label = { Text(Strings.crosswindLimitLabel(lang)) },
             isError = crossLimitError != null,
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -119,12 +118,11 @@ fun WindComponentScreen() {
         }
         Spacer(Modifier.height(24.dp))
 
-        // Always show runway. Show arrow only if valid.
         WindGraphic(
             runwayHeading = runwayDeg,
             windDir = windDirDeg,
             windSpeed = windSpeed,
-            crossLimitExceeded = crossLimitExceeded, // Boolean, not Int!
+            crossLimitExceeded = crossLimitExceeded,
             showArrow = canDrawArrow
         )
 
@@ -136,7 +134,7 @@ fun WindComponentScreen() {
                 style = MaterialTheme.typography.bodyLarge
             )
             Text(
-                "Crosswind: $crossLabel",
+                Strings.crosswindResult(crossLabel, lang),
                 color = if (crossLimitExceeded) Color.Red else Color.Black,
                 style = MaterialTheme.typography.bodyLarge
             )
