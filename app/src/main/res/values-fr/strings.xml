@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">AeroKit</string>
+    <string name="settings">Paramètres</string>
+    <string name="theme">Thème</string>
+    <string name="language">Langue</string>
+    <string name="about_help">À propos / Aide</string>
+    <string name="version">Version : %1$s</string>
+    <string name="contact_support_feedback">Contact / Support / Retour</string>
+    <string name="support_email">support@yourdomain.com</string>
+    <string name="privacy_policy">Politique de confidentialité</string>
+    <string name="terms_of_service">Conditions dutilisation</string>
+    <string name="light">Clair</string>
+    <string name="dark">Sombre</string>
+    <string name="auto">Auto</string>
+    <string name="english">Anglais</string>
+    <string name="french">Français</string>
+</resources>
