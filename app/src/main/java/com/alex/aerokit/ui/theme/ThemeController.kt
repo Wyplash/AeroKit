@@ -17,6 +17,12 @@ class ThemeController(
     var themeMode by mutableStateOf(AppThemeMode.SYSTEM)
     var language by mutableStateOf(initialLanguage)
 
+    // WindComponent persistent fields
+    var runwayInput by mutableStateOf("")
+    var windDirInput by mutableStateOf("")
+    var windSpeedInput by mutableStateOf("")
+    var crossLimitInput by mutableStateOf("")
+
     fun updateLanguage(newLanguage: AppLanguage) {
         language = newLanguage
         CoroutineScope(Dispatchers.IO).launch {

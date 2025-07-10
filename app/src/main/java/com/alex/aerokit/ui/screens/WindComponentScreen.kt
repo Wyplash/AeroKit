@@ -21,10 +21,11 @@ import kotlin.math.*
 fun WindComponentScreen(themeController: ThemeController) {
     val lang = themeController.language
 
-    var runwayInput by remember { mutableStateOf("") }
-    var windDirInput by remember { mutableStateOf("") }
-    var windSpeedInput by remember { mutableStateOf("") }
-    var crossLimitInput by remember { mutableStateOf("") }
+    // Persistent fields: use ThemeController state directly!
+    var runwayInput by themeController::runwayInput
+    var windDirInput by themeController::windDirInput
+    var windSpeedInput by themeController::windSpeedInput
+    var crossLimitInput by themeController::crossLimitInput
 
     val runwayError = validateRunway(runwayInput)
     val windDirError = validateWindDir(windDirInput)
@@ -131,11 +132,12 @@ fun WindComponentScreen(themeController: ThemeController) {
         if (canDrawArrow) {
             Text(
                 headLabel,
+                color = MaterialTheme.colorScheme.onBackground,
                 style = MaterialTheme.typography.bodyLarge
             )
             Text(
                 Strings.crosswindResult(crossLabel, lang),
-                color = if (crossLimitExceeded) Color.Red else Color.Black,
+                color = if (crossLimitExceeded) Color.Red else MaterialTheme.colorScheme.onBackground,
                 style = MaterialTheme.typography.bodyLarge
             )
         }
