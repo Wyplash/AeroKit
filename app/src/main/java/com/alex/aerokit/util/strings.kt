@@ -110,7 +110,7 @@ object Strings {
     fun windComponentTab() = windComponentTab(LocalAppLanguage.current)
     fun windComponentTab(language: AppLanguage) = when (language) {
         AppLanguage.ENGLISH -> "Wind Component"
-        AppLanguage.FRENCH -> "Composante vent"
+        AppLanguage.FRENCH -> "Composante de vent"
     }
 
     @Composable
@@ -138,7 +138,7 @@ object Strings {
     fun crosswindLimitLabel() = crosswindLimitLabel(LocalAppLanguage.current)
     fun crosswindLimitLabel(language: AppLanguage) = when (language) {
         AppLanguage.ENGLISH -> "Crosswind Limit (kt)"
-        AppLanguage.FRENCH -> "Limite vent traversier (kt)"
+        AppLanguage.FRENCH -> "Limite de vent traversier (kt)"
     }
 
     @Composable
@@ -183,6 +183,6 @@ object Strings {
     fun windComponent(language: AppLanguage): String =
         when (language) {
             AppLanguage.ENGLISH -> "Wind Component"
-            AppLanguage.FRENCH -> "Composante vent"
+            AppLanguage.FRENCH -> "Composante de vent"
     }
 }
