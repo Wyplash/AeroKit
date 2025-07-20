@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Radar
 import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -55,11 +56,11 @@ fun ToolsScreen(
             ToolItem(
                 id = 1,
                 icon = Icons.Default.Radar,
-                name = Strings.radioRange(lang),
-                description = when (lang) {
-                    com.alex.aerotool.ui.theme.AppLanguage.ENGLISH -> "Calculate line-of-sight distance"
-                    com.alex.aerotool.ui.theme.AppLanguage.FRENCH -> "Calculer la distance en ligne de vue"
-                }
+                name = when (lang) {
+                    com.alex.aerotool.ui.theme.AppLanguage.ENGLISH -> "Radio Range"
+                    com.alex.aerotool.ui.theme.AppLanguage.FRENCH -> "Portée Radio"
+                },
+                description = ""
             ),
             ToolItem(
                 id = 2,
@@ -84,6 +85,18 @@ fun ToolsScreen(
                     com.alex.aerotool.ui.theme.AppLanguage.ENGLISH -> "Aviation abbreviations reference"
                     com.alex.aerotool.ui.theme.AppLanguage.FRENCH -> "Référence des abréviations aéronautiques"
                 }
+            ),
+            ToolItem(
+                id = 4,
+                icon = Icons.Default.TrendingDown,
+                name = when (lang) {
+                    com.alex.aerotool.ui.theme.AppLanguage.ENGLISH -> "Constant Descent"
+                    com.alex.aerotool.ui.theme.AppLanguage.FRENCH -> "Descente Constante"
+                },
+                description = when (lang) {
+                    com.alex.aerotool.ui.theme.AppLanguage.ENGLISH -> "Calculate descent distance"
+                    com.alex.aerotool.ui.theme.AppLanguage.FRENCH -> "Calculer la distance de descente"
+                }
             )
             // Add more tools here as they're developed
         )
@@ -103,15 +116,6 @@ fun ToolsScreen(
                     .fillMaxSize()
                     .padding(16.dp)
             ) {
-                Text(
-                    text = when (lang) {
-                        com.alex.aerotool.ui.theme.AppLanguage.ENGLISH -> "Select a Tool"
-                        com.alex.aerotool.ui.theme.AppLanguage.FRENCH -> "Sélectionner un outil"
-                    },
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     contentPadding = PaddingValues(8.dp),
@@ -149,6 +153,10 @@ fun ToolsScreen(
                 customAbbreviations = customAbbreviations,
                 setCustomAbbreviations = setCustomAbbreviations
             )
+            4 -> ConstantDescentScreen(
+                themeController = themeController,
+                onBack = { selectedTool = null }
+            )
             // Add more tool screens here as they're developed
         }
     }
@@ -177,7 +185,7 @@ private fun ToolCard(
             Icon(
                 imageVector = tool.icon,
                 contentDescription = tool.name,
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(32.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
 
@@ -185,16 +193,16 @@ private fun ToolCard(
 
             Text(
                 text = tool.name,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
-                maxLines = 3
+                maxLines = 2
             )
 
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
                 text = tool.description,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelSmall,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2
