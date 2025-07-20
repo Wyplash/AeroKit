@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.round
 
 @Composable
 fun CalculatorFabAndSheet() {
@@ -77,8 +78,27 @@ private fun CalculatorContent() {
     var result by remember { mutableStateOf("") }
 
     fun eval(expr: String): String {
-        // TODO: Replace with an Android-compatible math parser or evaluator library.
-        return "N/A"
+        try {
+            val input = expr.replace('×', '*').replace('÷', '/')
+            val opRegex = Regex("([+\\-*/])")
+            val tokens = opRegex.split(input).filter { it.isNotBlank() }
+            val ops = opRegex.findAll(input).map { it.value }.toList()
+            if (tokens.isEmpty()) return ""
+            var acc = tokens[0].toDoubleOrNull() ?: return "Error"
+            for (i in ops.indices) {
+                val next = tokens.getOrNull(i + 1)?.toDoubleOrNull() ?: return "Error"
+                when (ops[i]) {
+                    "+" -> acc += next
+                    "-" -> acc -= next
+                    "*" -> acc *= next
+                    "/" -> acc /= next
+                }
+            }
+            val rounded = round(acc * 1e8) / 1e8
+            return if ((rounded % 1) == 0.0) rounded.toLong().toString() else rounded.toString()
+        } catch (e: Exception) {
+            return "Error"
+        }
     }
 
     Column(
@@ -89,7 +109,6 @@ private fun CalculatorContent() {
         verticalArrangement = Arrangement.Bottom,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Display panel
         Card(
             shape = RoundedCornerShape(22.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 7.dp),
@@ -109,7 +128,7 @@ private fun CalculatorContent() {
                     Text(
                         text = result,
                         style = MaterialTheme.typography.headlineLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
-                        color = Color(0xFFB8860B), // AviationGold
+                        color = Color(0xFFB8860B),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 2.dp),
@@ -119,61 +138,49 @@ private fun CalculatorContent() {
             }
         }
         Spacer(modifier = Modifier.height(28.dp))
-
         val btnModifier = Modifier
             .height(64.dp)
             .padding(horizontal = 4.dp, vertical = 2.dp)
-
-        // Row with wide C button above the 7 8 9 ÷ row
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Spacer(Modifier.weight(1f))
-            Spacer(Modifier.weight(1f))
-            Button(
-                onClick = { expression = ""; result = "" },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                shape = RoundedCornerShape(14.dp),
-                elevation = ButtonDefaults.buttonElevation(8.dp),
-                modifier = Modifier
-                    .weight(2f)
-                    .height(64.dp)
-            ) {
-                Text(
-                    "C",
-                    color = Color.White,
-                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 28.sp)
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        val keysRows = listOf(
+        val buttonRows = listOf(
+            listOf("C", "⌫"),
             listOf("7", "8", "9", "÷"),
             listOf("4", "5", "6", "×"),
             listOf("1", "2", "3", "-"),
             listOf("0", ".", "=", "+")
         )
-        for ((ri, row) in keysRows.withIndex()) {
+        for (row in buttonRows) {
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                for ((i, key) in row.withIndex()) {
+                for (key in row) {
                     val isOp = key in listOf("÷", "×", "-", "+")
                     val isEq = key == "="
+                    val isC = key == "C"
+                    val isBack = key == "⌫"
                     val bgColor = when {
                         isEq -> Color(0xFFB8860B)
                         isOp -> MaterialTheme.colorScheme.primary
+                        isC -> MaterialTheme.colorScheme.error
+                        isBack -> MaterialTheme.colorScheme.primary
                         else -> MaterialTheme.colorScheme.surface
                     }
                     val contentColor = when {
-                        isEq || isOp -> MaterialTheme.colorScheme.onPrimary
+                        isEq || isOp || isBack -> MaterialTheme.colorScheme.onPrimary
+                        isC -> Color.White
                         else -> MaterialTheme.colorScheme.onSurface
                     }
                     Button(
                         onClick = {
                             when (key) {
+                                "C" -> {
+                                    expression = ""; result = ""
+                                }
+
+                                "⌫" -> {
+                                    expression =
+                                        if (expression.isNotEmpty()) expression.dropLast(1) else ""
+                                }
                                 "=" -> result = eval(expression)
                                 else -> {
                                     if (result.isNotEmpty()) {
