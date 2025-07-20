@@ -14,7 +14,6 @@ class ThemeController(
     initialLanguage: AppLanguage,
     private val languagePreference: LanguagePreference
 ) {
-    var themeMode by mutableStateOf(AppThemeMode.SYSTEM)
     var language by mutableStateOf(initialLanguage)
 
     // WindComponent persistent fields

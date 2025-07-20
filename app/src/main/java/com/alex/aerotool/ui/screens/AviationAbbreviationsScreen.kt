@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.alex.aerotool.ui.components.AeroTopBar
+import com.alex.aerotool.ui.components.CalculatorFabAndSheet
 import com.alex.aerotool.ui.theme.AppLanguage
 import com.alex.aerotool.ui.theme.ThemeController
 
@@ -300,8 +301,8 @@ fun AviationAbbreviationsScreen(
             AbbreviationItem("STBY", "Standby", "STBY"),
             AbbreviationItem("PTT", "Push To Talk", "PTT"),
             AbbreviationItem("SBY", "Standby", "SBY"),
-            AbbreviationItem("ADS-B", "Automatic Dependent Surveillance—Broadcast", "ADS-B")
-    )
+            AbbreviationItem("ADS-B", "Automatic Dependent Surveillance—Broadcast", "ADS-B"),
+        )
     }
 
     // FAB add dialog state
@@ -425,11 +426,16 @@ fun AviationAbbreviationsScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Top bar with back button and info button
+            // Top bar with back button, info button, and ADD button on right
             AeroTopBar(
                 title = "AeroTool",
                 onBackClick = onBack,
-                onInfoClick = { showInfo = true }
+                onInfoClick = { showInfo = true },
+                actions = {
+                    IconButton(onClick = { showAddDialog = true }) {
+                        Icon(Icons.Default.Add, contentDescription = "Add Abbreviation")
+                    }
+                }
             )
 
             Column(
@@ -477,18 +483,7 @@ fun AviationAbbreviationsScreen(
                 }
             }
         }
-
-        // Add FAB
-        FloatingActionButton(
-            onClick = { showAddDialog = true },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(24.dp),
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = Color.White
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "Add Abbreviation")
-        }
+        CalculatorFabAndSheet()
     }
 }
 

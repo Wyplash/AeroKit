@@ -20,7 +20,8 @@ fun AeroTopBar(
     title: String,
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
-    onInfoClick: (() -> Unit)? = null
+    onInfoClick: (() -> Unit)? = null,
+    actions: (@Composable RowScope.() -> Unit)? = null
 ) {
     Box(
         modifier = modifier
@@ -29,12 +30,16 @@ fun AeroTopBar(
             .background(Color(0xFF001F3F)),
         contentAlignment = Alignment.Center
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (onBackClick != null) {
+        // Title in absolute center
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            color = Color.White,
+            modifier = Modifier.align(Alignment.Center)
+        )
+        // Back button absolutely aligned left
+        if (onBackClick != null) {
+            Row(Modifier.align(Alignment.CenterStart)) {
                 IconButton(
                     onClick = onBackClick,
                     modifier = Modifier.size(40.dp)
@@ -45,17 +50,13 @@ fun AeroTopBar(
                         tint = Color.White
                     )
                 }
-            } else {
-                Spacer(Modifier.width(16.dp))
             }
-            Spacer(Modifier.weight(1f))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
-                modifier = Modifier.align(Alignment.CenterVertically)
-            )
-            Spacer(Modifier.weight(1f))
+        }
+        // Info and actions absolutely aligned right
+        Row(
+            Modifier.align(Alignment.CenterEnd),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             if (onInfoClick != null) {
                 IconButton(
                     onClick = onInfoClick,
@@ -67,9 +68,8 @@ fun AeroTopBar(
                         tint = Color.White
                     )
                 }
-            } else {
-                Spacer(Modifier.width(16.dp))
             }
+            actions?.invoke(this)
         }
     }
 }

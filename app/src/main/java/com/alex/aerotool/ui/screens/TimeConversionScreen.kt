@@ -94,13 +94,7 @@ fun TimeConversionScreen(
             decimalHours = decimal.toString()
             val minutes = decimal * 60
             totalMinutes = minutes.toInt().toString()
-            // For total hours, convert standard time directly to simple decimal
-            val parts = text.split(":")
-            if (parts.size == 2) {
-                val hrs = parts[0].toIntOrNull() ?: 0
-                val mins = parts[1].toIntOrNull() ?: 0
-                totalHours = (hrs + mins / 60.0).toString()
-            }
+            totalHours = decimal.toString()
         } else {
             decimalHours = ""; totalMinutes = ""; totalHours = ""
         }
@@ -112,13 +106,7 @@ fun TimeConversionScreen(
         if (value != null) {
             standardTime = decimalToStandardTime(value)
             totalMinutes = (value * 60).toInt().toString()
-            // Convert aviation decimal back to simple decimal hours
-            val standardTimeParts = standardTime.split(":")
-            if (standardTimeParts.size == 2) {
-                val hrs = standardTimeParts[0].toIntOrNull() ?: 0
-                val mins = standardTimeParts[1].toIntOrNull() ?: 0
-                totalHours = (hrs + mins / 60.0).toString()
-            }
+            totalHours = value.toString()
         } else {
             standardTime = ""; totalMinutes = ""; totalHours = ""
         }
@@ -337,12 +325,9 @@ fun TimeConversionScreen(
                             lastEdited = "total"
                             val value = it.toDoubleOrNull()
                             if (value != null) {
-                                // Convert simple decimal hours to HH:MM
-                                val hrs = value.toInt()
-                                val mins = ((value - hrs) * 60).toInt()
-                                standardTime = String.format("%02d:%02d", hrs, mins)
+                                standardTime = decimalToStandardTime(value)
                                 totalMinutes = (value * 60).toInt().toString()
-                                decimalHours = standardTimeToDecimal(standardTime).toString()
+                                decimalHours = value.toString()
                             } else {
                                 standardTime = ""; totalMinutes = ""; decimalHours = ""
                             }

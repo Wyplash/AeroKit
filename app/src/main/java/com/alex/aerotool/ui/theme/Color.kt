@@ -2,11 +2,12 @@ package com.alex.aerotool.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Aviation-appropriate color palette
-val AviationBlue80 = Color(0xFF4A90E2)      // Light aviation blue
-val AviationGrey80 = Color(0xFFB0BEC5)      // Light aviation grey
-val AviationAccent80 = Color(0xFF81C784)    // Light green accent
-
-val AviationBlue40 = Color(0xFF1E3A8A)      // Dark navy blue (same as top bar)
-val AviationGrey40 = Color(0xFF546E7A)      // Dark aviation grey
-val AviationAccent40 = Color(0xFF388E3C)    // Dark green accent
+// Aviation-themed color palette - Dark Navy and Dark Gold
+val AviationNavy = Color(0xFF0D1B2A)        // Deep navy blue
+val AviationGold = Color(0xFFB8860B)        // Dark gold
+val AviationLightNavy = Color(0xFF1B263B)   // Lighter navy for surfaces
+val AviationAccentGold = Color(0xFFDAA520)  // Lighter gold accent
+val AviationGrey = Color(0xFF546E7A)        // Aviation grey
+val AviationLightGrey = Color(0xFFB0BEC5)   // Light grey for text
+val AviationDarkGrey = Color(0xFF37474F)    // Dark grey for backgrounds
+val AviationWhite = Color(0xFFFFFFF8)       // Slightly warm white

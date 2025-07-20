@@ -12,7 +12,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.alex.aerotool.ui.components.AeroTopBar
 import com.alex.aerotool.ui.theme.ThemeController
-import com.alex.aerotool.ui.theme.AppThemeMode
 import com.alex.aerotool.ui.theme.AppLanguage
 import com.alex.aerotool.util.Strings
 
@@ -34,21 +33,12 @@ fun SettingsScreen(
             Text(Strings.settings(), style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(24.dp))
 
-            // Theme selector
-            Text(Strings.theme())
-            Spacer(Modifier.height(8.dp))
-            ThemeModeSelector(
-                selected = themeController.themeMode,
-                onSelected = { themeController.themeMode = it }
-            )
-            Spacer(Modifier.height(20.dp))
-
-            // Language selector (FIXED: call updateLanguage!)
+            // Language selector
             Text(Strings.language())
             Spacer(Modifier.height(8.dp))
             LanguageSelector(
                 selected = themeController.language,
-                onSelected = { themeController.updateLanguage(it) }   // <--- Corrected!
+                onSelected = { themeController.updateLanguage(it) }
             )
             Spacer(Modifier.height(24.dp))
 
@@ -125,31 +115,6 @@ fun SettingsScreen(
                 }
             }
         )
-    }
-}
-
-@Composable
-fun ThemeModeSelector(selected: AppThemeMode, onSelected: (AppThemeMode) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-        ThemeRadioButton(Strings.light(), AppThemeMode.LIGHT, selected, onSelected)
-        ThemeRadioButton(Strings.dark(), AppThemeMode.DARK, selected, onSelected)
-        ThemeRadioButton(Strings.auto(), AppThemeMode.SYSTEM, selected, onSelected)
-    }
-}
-
-@Composable
-fun ThemeRadioButton(
-    label: String,
-    mode: AppThemeMode,
-    selected: AppThemeMode,
-    onSelected: (AppThemeMode) -> Unit
-) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        RadioButton(
-            selected = (selected == mode),
-            onClick = { onSelected(mode) }
-        )
-        Text(label)
     }
 }
 
