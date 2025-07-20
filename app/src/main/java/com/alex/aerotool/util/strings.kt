@@ -1,8 +1,8 @@
-package com.alex.aerokit.util
+package com.alex.aerotool.util
 
 import androidx.compose.runtime.Composable
-import com.alex.aerokit.ui.theme.AppLanguage
-import com.alex.aerokit.ui.theme.LocalAppLanguage
+import com.alex.aerotool.ui.theme.AppLanguage
+import com.alex.aerotool.ui.theme.LocalAppLanguage
 
 object Strings {
     // ---- General/Settings ----
@@ -157,7 +157,8 @@ object Strings {
         AppLanguage.ENGLISH -> "Tailwind: $value kt"
         AppLanguage.FRENCH -> "Vent arrière : $value kt"
     }
-@Composable
+
+    @Composable
     fun headwind(value: Int): String = when (LocalAppLanguage.current) {
         AppLanguage.ENGLISH -> "Headwind: $value kt"
         AppLanguage.FRENCH -> "Vent de face : $value kt"
@@ -184,5 +185,61 @@ object Strings {
         when (language) {
             AppLanguage.ENGLISH -> "Wind Component"
             AppLanguage.FRENCH -> "Composante de vent"
+    }
+
+    // --- Radio Range screen ---
+    fun radioRange(language: AppLanguage): String =
+        when (language) {
+            AppLanguage.ENGLISH -> "Radio Range"
+            AppLanguage.FRENCH -> "Portée Radio"
+        }
+
+    @Composable
+    fun transmitterPowerLabel() = transmitterPowerLabel(LocalAppLanguage.current)
+    fun transmitterPowerLabel(language: AppLanguage) = when (language) {
+        AppLanguage.ENGLISH -> "Transmitter Power (W)"
+        AppLanguage.FRENCH -> "Puissance de l'émetteur (W)"
+    }
+
+    @Composable
+    fun receiverSensitivityLabel() = receiverSensitivityLabel(LocalAppLanguage.current)
+    fun receiverSensitivityLabel(language: AppLanguage) = when (language) {
+        AppLanguage.ENGLISH -> "Receiver Sensitivity (µV)"
+        AppLanguage.FRENCH -> "Sensibilité du récepteur (µV)"
+    }
+
+    @Composable
+    fun frequencyLabel() = frequencyLabel(LocalAppLanguage.current)
+    fun frequencyLabel(language: AppLanguage) = when (language) {
+        AppLanguage.ENGLISH -> "Frequency (MHz)"
+        AppLanguage.FRENCH -> "Fréquence (MHz)"
+    }
+
+    @Composable
+    fun antennaGainLabel() = antennaGainLabel(LocalAppLanguage.current)
+    fun antennaGainLabel(language: AppLanguage) = when (language) {
+        AppLanguage.ENGLISH -> "Antenna Gain (dBi)"
+        AppLanguage.FRENCH -> "Gain d'antenne (dBi)"
+    }
+
+    @Composable
+    fun aircraftAltitudeLabel() = aircraftAltitudeLabel(LocalAppLanguage.current)
+    fun aircraftAltitudeLabel(language: AppLanguage) = when (language) {
+        AppLanguage.ENGLISH -> "Aircraft Altitude (ft)"
+        AppLanguage.FRENCH -> "Altitude de l'aéronef (ft)"
+    }
+
+    @Composable
+    fun radioStationAltitudeLabel() = radioStationAltitudeLabel(LocalAppLanguage.current)
+    fun radioStationAltitudeLabel(language: AppLanguage) = when (language) {
+        AppLanguage.ENGLISH -> "Radio Station Altitude (ft)"
+        AppLanguage.FRENCH -> "Altitude de la station radio (ft)"
+    }
+
+    @Composable
+    fun radioRangeResult(range: String) = radioRangeResult(range, LocalAppLanguage.current)
+    fun radioRangeResult(range: String, language: AppLanguage) = when (language) {
+        AppLanguage.ENGLISH -> "Estimated Range: $range km"
+        AppLanguage.FRENCH -> "Portée estimée : $range km"
     }
 }

@@ -1,4 +1,4 @@
-package com.alex.aerokit.ui.theme
+package com.alex.aerotool.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

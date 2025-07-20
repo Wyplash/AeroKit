@@ -1,4 +1,4 @@
-package com.alex.aerokit.ui
+package com.alex.aerotool.ui
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -15,7 +15,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 Surface {
-                    AeroKitApp()
+                    AeroToolApp()
                 }
             }
         }

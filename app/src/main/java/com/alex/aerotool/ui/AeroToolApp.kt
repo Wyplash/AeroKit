@@ -1,7 +1,8 @@
-package com.alex.aerokit.ui
+package com.alex.aerotool.ui
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -12,14 +13,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import com.alex.aerokit.data.LanguagePreference
-import com.alex.aerokit.ui.screens.ConversionScreen
-import com.alex.aerokit.ui.screens.SettingsScreen
-import com.alex.aerokit.ui.screens.ToolsScreen
-import com.alex.aerokit.ui.theme.*
+import com.alex.aerotool.data.LanguagePreference
+import com.alex.aerotool.ui.components.AeroTopBar
+import com.alex.aerotool.ui.screens.ConversionScreen
+import com.alex.aerotool.ui.screens.SettingsScreen
+import com.alex.aerotool.ui.screens.ToolsScreen
+import com.alex.aerotool.ui.theme.*
 
 @Composable
-fun AeroKitApp() {
+fun AeroToolApp() {
     val context = LocalContext.current
 
     // Only one instance per app run
@@ -36,6 +38,14 @@ fun AeroKitApp() {
             themeController.updateLanguage(savedLanguage)
         }
     }
+
+    // --------- Custom abbreviations state (list) for sharing between screens ---------
+    var customAbbreviations by remember { mutableStateOf(listOf<com.alex.aerotool.ui.screens.AbbreviationItem>()) }
+    fun clearCustomAbbreviations() {
+        customAbbreviations = emptyList()
+    }
+
+    // -------------------------------------------------------------------------------
 
     CompositionLocalProvider(LocalAppLanguage provides themeController.language) {
         MaterialTheme(
@@ -71,15 +81,22 @@ fun AeroKitApp() {
                     }
                 }
             ) { padding ->
-                Box(
+                Column(
                     Modifier
                         .padding(padding)
                         .fillMaxSize()
                 ) {
                     when (bottomTab) {
-                        0 -> ToolsScreen(themeController)
+                        0 -> ToolsScreen(
+                            themeController = themeController,
+                            customAbbreviations = customAbbreviations,
+                            setCustomAbbreviations = { customAbbreviations = it }
+                        )
                         1 -> ConversionScreen(themeController)
-                        2 -> SettingsScreen(themeController)
+                        2 -> SettingsScreen(
+                            themeController = themeController,
+                            clearCustomAbbreviations = { clearCustomAbbreviations() }
+                        )
                     }
                 }
             }

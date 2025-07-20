@@ -1,4 +1,4 @@
-package com.alex.aerokit.util
+package com.alex.aerotool.util
 
 /** Converts runway input to heading in degrees.
  *  - 2 digits (e.g., "26") → 260

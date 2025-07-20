@@ -1,4 +1,4 @@
-package com.alex.aerokit.ui.components
+package com.alex.aerotool.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*

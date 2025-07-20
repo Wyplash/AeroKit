@@ -1,9 +1,9 @@
-package com.alex.aerokit.ui.theme
+package com.alex.aerotool.ui.theme
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.alex.aerokit.data.LanguagePreference
+import com.alex.aerotool.data.LanguagePreference
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

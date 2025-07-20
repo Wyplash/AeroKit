@@ -19,6 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "AeroKit"
+rootProject.name = "AeroTool"
 include(":app")
- 

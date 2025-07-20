@@ -1,3 +1,3 @@
-package com.alex.aerokit.ui.theme
+package com.alex.aerotool.ui.theme
 
 enum class AppThemeMode { LIGHT, DARK, SYSTEM }

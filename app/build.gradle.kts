@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.alex.aerokit"
+    namespace = "com.alex.aerotool"
     compileSdk = 36
 
     defaultConfig {

@@ -1,4 +1,4 @@
-package com.alex.aerokit.ui.theme
+package com.alex.aerotool.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -11,15 +11,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = AviationBlue80,
+    secondary = AviationGrey80,
+    tertiary = AviationAccent80
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    primary = AviationBlue40,
+    secondary = AviationGrey40,
+    tertiary = AviationAccent40
 )
 
 @Composable

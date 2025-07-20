@@ -1,4 +1,4 @@
-package com.alex.aerokit
+package com.alex.aerotool
 
 import org.junit.Test
 

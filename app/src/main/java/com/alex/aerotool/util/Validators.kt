@@ -1,4 +1,4 @@
-package com.alex.aerokit.util
+package com.alex.aerotool.util
 
 // Validates runway input: 2 digits (1–36) or 3 digits (0–359)
 fun validateRunway(input: String): String? = when {
