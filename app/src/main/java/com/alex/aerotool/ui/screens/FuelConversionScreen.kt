@@ -83,9 +83,10 @@ fun FuelConversionScreen(
         if (value != null) {
             val density = getCurrentDensity()
             kilograms = (value * 0.453592).round(2)
-            liters = (value / (density * 2.20462)).round(2)
-            usGallons = (liters.toDoubleOrNull()?.let { it * 0.264172 } ?: 0.0).round(3)
-            imperialGallons = (liters.toDoubleOrNull()?.let { it * 0.219969 } ?: 0.0).round(3)
+            val litersValue = (value / (density * 2.20462))
+            liters = litersValue.round(2)
+            usGallons = (litersValue * 0.264172).round(3)
+            imperialGallons = (litersValue * 0.219969).round(3)
         } else {
             kilograms = ""; liters = ""; usGallons = ""; imperialGallons = ""
         }
@@ -96,9 +97,10 @@ fun FuelConversionScreen(
         if (value != null) {
             val density = getCurrentDensity()
             pounds = (value * 2.20462).round(2)
-            liters = (value / density).round(2)
-            usGallons = (liters.toDoubleOrNull()?.let { it * 0.264172 } ?: 0.0).round(3)
-            imperialGallons = (liters.toDoubleOrNull()?.let { it * 0.219969 } ?: 0.0).round(3)
+            val litersValue = (value / density)
+            liters = litersValue.round(2)
+            usGallons = (litersValue * 0.264172).round(3)
+            imperialGallons = (litersValue * 0.219969).round(3)
         } else {
             pounds = ""; liters = ""; usGallons = ""; imperialGallons = ""
         }
