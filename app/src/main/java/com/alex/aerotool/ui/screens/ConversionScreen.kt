@@ -2,21 +2,26 @@ package com.alex.aerotool.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Calculate
-import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.outlined.Compress
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.FitnessCenter
 import androidx.compose.material.icons.outlined.LocalGasStation
 import androidx.compose.material.icons.outlined.Opacity
-import androidx.compose.material.icons.outlined.RadioButtonChecked
-import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material.icons.outlined.Speed
@@ -40,8 +45,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.alex.aerotool.ui.components.AeroTopBar
 import com.alex.aerotool.ui.components.CalculatorFabAndSheet
-import com.alex.aerotool.ui.theme.ThemeController
 import com.alex.aerotool.ui.theme.AviationGold
+import com.alex.aerotool.ui.theme.ThemeController
 
 // Models a conversion category
 private data class ConversionCategory(
@@ -51,7 +56,12 @@ private data class ConversionCategory(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ConversionScreen(themeController: ThemeController) {
+fun ConversionScreen(
+    themeController: ThemeController,
+    calculatorExpression: String,
+    calculatorResult: String,
+    setCalculatorState: (String, String) -> Unit
+) {
     val categories = listOf(
         ConversionCategory(
             icon = Icons.Outlined.Speed,
@@ -257,6 +267,12 @@ fun ConversionScreen(themeController: ThemeController) {
                 }
             }
         }
-        CalculatorFabAndSheet()
+        CalculatorFabAndSheet(
+            expression = calculatorExpression,
+            result = calculatorResult,
+            setCalculatorState = setCalculatorState,
+            onTimeConversionClick = { selectedCategory = "Time" },
+            themeController = themeController
+        )
     }
 }

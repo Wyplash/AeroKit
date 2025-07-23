@@ -1,6 +1,5 @@
 package com.alex.aerotool.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,12 +9,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredHeight
-import androidx.compose.foundation.layout.requiredWidth
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Calculate
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -26,9 +23,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,47 +33,81 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.alex.aerotool.ui.theme.ThemeController
 import kotlin.math.round
 
+enum class CalculatorScreenState {
+    HIDDEN,
+    CALCULATOR
+}
+
 @Composable
-fun CalculatorFabAndSheet() {
-    var showCalculator by remember { mutableStateOf(false) }
+fun CalculatorFabAndSheet(
+    expression: String,
+    result: String,
+    setCalculatorState: (String, String) -> Unit,
+    onTimeConversionClick: () -> Unit,
+    themeController: ThemeController
+) {
+    var screenState by remember { mutableStateOf(CalculatorScreenState.HIDDEN) }
+
     Box(Modifier.fillMaxSize()) {
-        if (showCalculator) {
-            Surface(
-                tonalElevation = 8.dp,
-                color = MaterialTheme.colorScheme.background,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Column(Modifier.fillMaxSize()) {
-                    AeroTopBar(
-                        title = "AeroTool",
-                        onBackClick = { showCalculator = false }
-                    )
-                    CalculatorContent()
+        when (screenState) {
+            CalculatorScreenState.CALCULATOR -> {
+                Surface(
+                    tonalElevation = 8.dp,
+                    color = MaterialTheme.colorScheme.background,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Column(Modifier.fillMaxSize()) {
+                        AeroTopBar(
+                            title = "AeroTool",
+                            onBackClick = {
+                                screenState = CalculatorScreenState.HIDDEN
+                            }
+                        )
+                        CalculatorContent(
+                            expression = expression,
+                            result = result,
+                            setCalculatorState = setCalculatorState,
+                            onTimeConversionClick = {
+                                screenState = CalculatorScreenState.HIDDEN
+                                onTimeConversionClick()
+                            },
+                            onCloseCalculator = {
+                                screenState = CalculatorScreenState.HIDDEN
+                            }
+                        )
+                    }
                 }
             }
-        }
-        if (!showCalculator) {
-            FloatingActionButton(
-                onClick = { showCalculator = true },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(24.dp),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Outlined.Calculate, contentDescription = "Calculator")
+
+            CalculatorScreenState.HIDDEN -> {
+                FloatingActionButton(
+                    onClick = {
+                        screenState = CalculatorScreenState.CALCULATOR
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(24.dp),
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = Color.White
+                ) {
+                    Icon(Icons.Outlined.Calculate, contentDescription = "Calculator")
+                }
             }
         }
     }
 }
 
 @Composable
-private fun CalculatorContent() {
-    var expression by remember { mutableStateOf("") }
-    var result by remember { mutableStateOf("") }
-
+private fun CalculatorContent(
+    expression: String,
+    result: String,
+    setCalculatorState: (String, String) -> Unit,
+    onTimeConversionClick: () -> Unit,
+    onCloseCalculator: () -> Unit
+) {
     fun eval(expr: String): String {
         try {
             val input = expr.replace('×', '*').replace('÷', '/')
@@ -142,7 +173,7 @@ private fun CalculatorContent() {
             .height(64.dp)
             .padding(horizontal = 4.dp, vertical = 2.dp)
         val buttonRows = listOf(
-            listOf("C", "⌫"),
+            listOf("⏰", "", "C", "⌫"),
             listOf("7", "8", "9", "÷"),
             listOf("4", "5", "6", "×"),
             listOf("1", "2", "3", "-"),
@@ -154,55 +185,91 @@ private fun CalculatorContent() {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 for (key in row) {
-                    val isOp = key in listOf("÷", "×", "-", "+")
-                    val isEq = key == "="
-                    val isC = key == "C"
-                    val isBack = key == "⌫"
-                    val bgColor = when {
-                        isEq -> Color(0xFFB8860B)
-                        isOp -> MaterialTheme.colorScheme.primary
-                        isC -> MaterialTheme.colorScheme.error
-                        isBack -> MaterialTheme.colorScheme.primary
-                        else -> MaterialTheme.colorScheme.surface
-                    }
-                    val contentColor = when {
-                        isEq || isOp || isBack -> MaterialTheme.colorScheme.onPrimary
-                        isC -> Color.White
-                        else -> MaterialTheme.colorScheme.onSurface
-                    }
-                    Button(
-                        onClick = {
-                            when (key) {
-                                "C" -> {
-                                    expression = ""; result = ""
-                                }
+                    if (key.isEmpty()) {
+                        // Empty space where no button should be
+                        Spacer(modifier = btnModifier.weight(1f))
+                    } else {
+                        val isOp = key in listOf("÷", "×", "-", "+")
+                        val isEq = key == "="
+                        val isC = key == "C"
+                        val isBack = key == "⌫"
+                        val isTimeBtn = key == "⏰"
+                        val bgColor = when {
+                            isEq -> Color(0xFFB8860B)
+                            isOp -> MaterialTheme.colorScheme.primary
+                            isC -> MaterialTheme.colorScheme.error
+                            isBack -> MaterialTheme.colorScheme.primary
+                            isTimeBtn -> MaterialTheme.colorScheme.secondary
+                            else -> MaterialTheme.colorScheme.surface
+                        }
+                        val contentColor = when {
+                            isEq || isOp || isBack || isTimeBtn -> MaterialTheme.colorScheme.onPrimary
+                            isC -> Color.White
+                            else -> MaterialTheme.colorScheme.onSurface
+                        }
+                        Button(
+                            onClick = {
+                                when (key) {
+                                    "C" -> {
+                                        var nextExp = expression
+                                        var nextRes = result
+                                        nextExp = ""; nextRes = ""
+                                        setCalculatorState(nextExp, nextRes)
+                                    }
+                                    "⌫" -> {
+                                        var nextExp = expression
+                                        var nextRes = result
+                                        nextExp =
+                                            if (nextExp.isNotEmpty()) nextExp.dropLast(1) else ""
+                                        setCalculatorState(nextExp, nextRes)
+                                    }
+                                    "=" -> {
+                                        var nextExp = expression
+                                        var nextRes = result
+                                        nextRes = eval(nextExp)
+                                        setCalculatorState(nextExp, nextRes)
+                                    }
 
-                                "⌫" -> {
-                                    expression =
-                                        if (expression.isNotEmpty()) expression.dropLast(1) else ""
-                                }
-                                "=" -> result = eval(expression)
-                                else -> {
-                                    if (result.isNotEmpty()) {
-                                        if (key in listOf("÷", "×", "-", "+")) {
-                                            expression = result + key
-                                            result = ""
+                                    "⏰" -> {
+                                        onTimeConversionClick()
+                                    }
+                                    else -> {
+                                        var nextExp = expression
+                                        var nextRes = result
+                                        if (nextRes.isNotEmpty()) {
+                                            if (key in listOf("÷", "×", "-", "+")) {
+                                                nextExp = nextRes + key
+                                                nextRes = ""
+                                            } else {
+                                                nextExp = key
+                                                nextRes = ""
+                                            }
                                         } else {
-                                            expression = key
-                                            result = ""
+                                            nextExp += key
                                         }
-                                    } else {
-                                        expression += key
+                                        setCalculatorState(nextExp, nextRes)
                                     }
                                 }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = bgColor),
+                            shape = RoundedCornerShape(14.dp),
+                            elevation = ButtonDefaults.buttonElevation(8.dp),
+                            modifier = btnModifier.weight(1f)
+                        ) {
+                            if (key == "⏰") {
+                                Icon(
+                                    Icons.Outlined.Schedule,
+                                    contentDescription = "Time Conversion",
+                                    tint = contentColor
+                                )
+                            } else {
+                                Text(
+                                    key,
+                                    color = contentColor,
+                                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 28.sp)
+                                )
                             }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = bgColor),
-                        shape = RoundedCornerShape(14.dp),
-                        elevation = ButtonDefaults.buttonElevation(8.dp),
-                        modifier = btnModifier.weight(1f)
-                    ) {
-                        Text(key, color = contentColor, style = MaterialTheme.typography.titleLarge.copy(fontSize = 28.sp))
+                        }
                     }
                 }
             }

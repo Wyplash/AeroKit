@@ -1,7 +1,5 @@
 package com.alex.aerotool.ui
 
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -9,17 +7,31 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Flight
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Transform
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.graphics.Color
 import com.alex.aerotool.data.LanguagePreference
-import com.alex.aerotool.ui.components.AeroTopBar
 import com.alex.aerotool.ui.screens.ConversionScreen
 import com.alex.aerotool.ui.screens.SettingsScreen
 import com.alex.aerotool.ui.screens.ToolsScreen
-import com.alex.aerotool.ui.theme.*
+import com.alex.aerotool.ui.theme.AeroKitTheme
+import com.alex.aerotool.ui.theme.AppLanguage
+import com.alex.aerotool.ui.theme.AviationDarkGrey
+import com.alex.aerotool.ui.theme.AviationGold
+import com.alex.aerotool.ui.theme.LocalAppLanguage
+import com.alex.aerotool.ui.theme.ThemeController
 
 @Composable
 fun AeroToolApp() {
@@ -46,7 +58,13 @@ fun AeroToolApp() {
         customAbbreviations = emptyList()
     }
 
-    // -------------------------------------------------------------------------------
+    // --------- Calculator state for persistence across screens ---------
+    var calculatorExpression by remember { mutableStateOf("") }
+    var calculatorResult by remember { mutableStateOf("") }
+    fun setCalculatorState(expr: String, res: String) {
+        calculatorExpression = expr
+        calculatorResult = res
+    }
 
     CompositionLocalProvider(LocalAppLanguage provides themeController.language) {
         AeroKitTheme {
@@ -104,9 +122,17 @@ fun AeroToolApp() {
                         0 -> ToolsScreen(
                             themeController = themeController,
                             customAbbreviations = customAbbreviations,
-                            setCustomAbbreviations = { customAbbreviations = it }
+                            setCustomAbbreviations = { customAbbreviations = it },
+                            calculatorExpression = calculatorExpression,
+                            calculatorResult = calculatorResult,
+                            setCalculatorState = ::setCalculatorState
                         )
-                        1 -> ConversionScreen(themeController)
+                        1 -> ConversionScreen(
+                            themeController = themeController,
+                            calculatorExpression = calculatorExpression,
+                            calculatorResult = calculatorResult,
+                            setCalculatorState = ::setCalculatorState
+                        )
                         2 -> SettingsScreen(
                             themeController = themeController,
                             clearCustomAbbreviations = { clearCustomAbbreviations() }
