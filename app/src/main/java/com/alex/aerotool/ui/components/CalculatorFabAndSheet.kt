@@ -309,8 +309,7 @@ private fun CalculatorContent(
                 listOf("⏰", "🕒", "C", "⌫"),
                 listOf("7", "8", "9", "+"),
                 listOf("4", "5", "6", "-"),
-                listOf("1", "2", "3", ":"),
-                listOf("0", "", "=", "")
+                listOf("1", "2", "3", "=")
             )
         } else {
             listOf(
@@ -321,172 +320,467 @@ private fun CalculatorContent(
                 listOf("0", ".", "=", "+")
             )
         }
-        for (row in buttonRows) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                for (key in row) {
-                    if (key.isEmpty()) {
-                        // Empty space where no button should be
-                        Spacer(modifier = btnModifier.weight(1f))
-                    } else {
-                        val isOp = key in listOf("÷", "×", "-", "+")
-                        val isEq = key == "="
-                        val isC = key == "C"
-                        val isBack = key == "⌫"
-                        val isTimeBtn = key == "⏰"
-                        val isTimeCalcBtn = key == "🕒"
-                        val bgColor = when {
-                            isEq -> Color(0xFFB8860B)
-                            isOp -> MaterialTheme.colorScheme.primary
-                            isC -> MaterialTheme.colorScheme.error
-                            isBack -> MaterialTheme.colorScheme.primary
-                            isTimeBtn -> MaterialTheme.colorScheme.secondary
-                            isTimeCalcBtn -> if (calculatorMode == CalculatorMode.TIME) Color(
-                                0xFF4CAF50
-                            ) else MaterialTheme.colorScheme.secondary
-                            else -> MaterialTheme.colorScheme.surface
-                        }
-                        val contentColor = when {
-                            isEq || isOp || isBack || isTimeBtn || isTimeCalcBtn -> MaterialTheme.colorScheme.onPrimary
-                            isC -> Color.White
-                            else -> MaterialTheme.colorScheme.onSurface
-                        }
-                        Button(
-                            onClick = {
-                                when (key) {
-                                    "C" -> {
-                                        var nextExp = expression
-                                        var nextRes = result
-                                        nextExp = ""; nextRes = ""
-                                        setCalculatorState(nextExp, nextRes)
-                                    }
-                                    "⌫" -> {
-                                        var nextExp = expression
-                                        var nextRes = result
-                                        nextExp =
-                                            if (nextExp.isNotEmpty()) nextExp.dropLast(1) else ""
-                                        setCalculatorState(nextExp, nextRes)
-                                    }
-                                    "=" -> {
-                                        var nextExp = expression
-                                        var nextRes = result
-                                        if (calculatorMode == CalculatorMode.TIME) {
-                                            nextRes = evaluateTimeExpression(nextExp)
-                                        } else {
-                                            nextRes = eval(nextExp)
-                                        }
-                                        setCalculatorState(nextExp, nextRes)
-                                    }
 
-                                    "⏰" -> {
-                                        onTimeConversionClick()
-                                    }
-                                    "🕒" -> {
-                                        setCalculatorState("", "") // Clear state on toggle
-                                        onModeChange(if (calculatorMode == CalculatorMode.TIME) CalculatorMode.NORMAL else CalculatorMode.TIME)
-                                    }
-                                    else -> {
-                                        var nextExp = expression
-                                        var nextRes = result
-                                        if (calculatorMode == CalculatorMode.TIME) {
-                                            if (key in "0123456789") {
-                                                // If no operator yet, build time digits
+        if (calculatorMode == CalculatorMode.TIME) {
+            val buttonRows = listOf(
+                listOf("⏰", "🕒", "C", "⌫"),
+                listOf("7", "8", "9", "+"),
+                listOf("4", "5", "6", "-"),
+                listOf("1", "2", "3", "=")
+            )
+            for ((rowIndex, row) in buttonRows.withIndex()) {
+                // For the last row, make = a normal height button (to avoid overlap with big bottom =)
+                val showEqButton = !(rowIndex == buttonRows.lastIndex)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    for ((colIndex, key) in row.withIndex()) {
+                        if (key.isEmpty()) {
+                            Spacer(modifier = btnModifier.weight(1f))
+                        } else {
+                            val displayKey = key
+                            val isEq = displayKey == "="
+                            val isVisible =
+                                !isEq || showEqButton // Hide '=' in row with bottom big '='
+                            if (!isVisible) {
+                                Spacer(modifier = btnModifier.weight(1f)); continue
+                            }
+                            val isOp = displayKey in listOf("÷", "×", "-", "+")
+                            val isC = displayKey == "C"
+                            val isBack = displayKey == "⌫"
+                            val isTimeBtn = displayKey == "⏰"
+                            val isTimeCalcBtn = displayKey == "🕒"
+                            val bgColor = when {
+                                isEq -> Color(0xFFB8860B)
+                                isOp -> MaterialTheme.colorScheme.primary
+                                isC -> MaterialTheme.colorScheme.error
+                                isBack -> MaterialTheme.colorScheme.primary
+                                isTimeBtn -> MaterialTheme.colorScheme.secondary
+                                isTimeCalcBtn -> if (calculatorMode == CalculatorMode.TIME) Color(
+                                    0xFF4CAF50
+                                ) else MaterialTheme.colorScheme.secondary
+                                else -> MaterialTheme.colorScheme.surface
+                            }
+                            val contentColor = when {
+                                isEq || isOp || isBack || isTimeBtn || isTimeCalcBtn -> MaterialTheme.colorScheme.onPrimary
+                                isC -> Color.White
+                                else -> MaterialTheme.colorScheme.onSurface
+                            }
+                            Button(
+                                onClick = {
+                                    when (displayKey) {
+                                        "C" -> setCalculatorState("", "")
+                                        "⌫" -> setCalculatorState(
+                                            if (expression.isNotEmpty()) expression.dropLast(
+                                                1
+                                            ) else "", result
+                                        )
+
+                                        "=" -> setCalculatorState(
+                                            expression,
+                                            evaluateTimeExpression(expression)
+                                        )
+
+                                        "⏰" -> onTimeConversionClick()
+                                        "🕒" -> {
+                                            setCalculatorState(
+                                                "",
+                                                ""
+                                            ); onModeChange(if (calculatorMode == CalculatorMode.TIME) CalculatorMode.NORMAL else CalculatorMode.TIME)
+                                        }
+
+                                        else -> {
+                                            var nextExp = expression
+                                            var nextRes = result
+                                            if (displayKey in "0123456789") {
                                                 val lastOpIdx =
                                                     nextExp.lastIndexOfAny(charArrayOf('+', '-'))
                                                 if (lastOpIdx == -1) {
-                                                    nextExp += key
-                                                    // Limit entry to 4 digits before next operator
+                                                    nextExp += displayKey
                                                     val digits = nextExp.filter { it.isDigit() }
                                                     if (digits.length > 4) nextExp =
                                                         digits.takeLast(4)
                                                 } else {
-                                                    // After an op, start next time part
                                                     val prefix = nextExp.substring(0..lastOpIdx)
                                                     val suffix = nextExp.substring(lastOpIdx + 1)
                                                     val newSuffix =
-                                                        (suffix + key).filter { it.isDigit() }
+                                                        (suffix + displayKey).filter { it.isDigit() }
                                                             .takeLast(4)
                                                     nextExp = prefix + newSuffix
                                                 }
                                                 setCalculatorState(nextExp, nextRes)
-                                            } else if (key == ":") {
-                                                // ignore direct : on input
-                                            } else if (key in listOf("+", "-")) {
-                                                // Only add op if last was a time block
+                                            } else if (displayKey == ":") {
+                                                // ignore
+                                            } else if (displayKey in listOf("+", "-")) {
                                                 if (nextExp.isNotEmpty() && !nextExp.last()
                                                         .isWhitespace() && nextExp.last().isDigit()
-                                                ) {
-                                                    nextExp += key
-                                                }
+                                                ) nextExp += displayKey
                                                 setCalculatorState(nextExp, nextRes)
                                             } else {
-                                                // =, etc. handled as previously
-                                                // ... fall through to existing logic
                                                 if (nextRes.isNotEmpty()) {
-                                                    nextExp = key
-                                                    nextRes = ""
+                                                    nextExp = displayKey; nextRes = ""
                                                 } else {
-                                                    nextExp += key
+                                                    nextExp += displayKey
                                                 }
                                                 setCalculatorState(nextExp, nextRes)
                                             }
-                                        } else {
-                                            // NORMAL MODE logic unchanged...
-                                            if (nextRes.isNotEmpty()) {
-                                                if (key in listOf("÷", "×", "-", "+")) {
-                                                    nextExp = nextRes + key
-                                                    nextRes = ""
-                                                } else {
-                                                    nextExp = key
-                                                    nextRes = ""
-                                                }
-                                            } else {
-                                                nextExp += key
-                                            }
-                                            setCalculatorState(nextExp, nextRes)
                                         }
                                     }
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = bgColor),
-                            shape = RoundedCornerShape(14.dp),
-                            elevation = ButtonDefaults.buttonElevation(8.dp),
-                            modifier = btnModifier.weight(1f)
-                        ) {
-                            if (key == "⏰") {
-                                Icon(
-                                    Icons.Outlined.Schedule,
-                                    contentDescription = "Time Conversion",
-                                    tint = contentColor
-                                )
-                            } else if (key == "🕒") {
-                                if (calculatorMode == CalculatorMode.NORMAL) {
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = bgColor),
+                                shape = RoundedCornerShape(14.dp),
+                                elevation = ButtonDefaults.buttonElevation(8.dp),
+                                modifier = btnModifier.weight(1f)
+                            ) {
+                                if (displayKey == "⏰") {
                                     Icon(
-                                        Icons.Outlined.Calculate,
-                                        contentDescription = "Normal Calculator Mode",
+                                        Icons.Outlined.Schedule,
+                                        contentDescription = "Time Conversion",
                                         tint = contentColor
                                     )
+                                } else if (displayKey == "🕒") {
+                                    if (calculatorMode == CalculatorMode.NORMAL) {
+                                        Icon(
+                                            Icons.Outlined.Calculate,
+                                            contentDescription = "Normal Calculator Mode",
+                                            tint = contentColor
+                                        )
+                                    } else {
+                                        Icon(
+                                            Icons.Outlined.Timer,
+                                            contentDescription = "Time Calculator Mode",
+                                            tint = contentColor
+                                        )
+                                    }
                                 } else {
-                                    Icon(
-                                        Icons.Outlined.Timer,
-                                        contentDescription = "Time Calculator Mode",
-                                        tint = contentColor
+                                    Text(
+                                        displayKey,
+                                        color = contentColor,
+                                        style = MaterialTheme.typography.titleLarge.copy(fontSize = 28.sp)
                                     )
                                 }
-                            } else {
-                                Text(
-                                    key,
-                                    color = contentColor,
-                                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 28.sp)
-                                )
                             }
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(12.dp))
             }
-            Spacer(modifier = Modifier.height(12.dp))
+            // Last row: wide 0 (weight 3), large = (weight 1, height 140dp)
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        var nextExp = expression
+                        var nextRes = result
+                        val displayKey = "0"
+                        if (displayKey in "0123456789") {
+                            val lastOpIdx = nextExp.lastIndexOfAny(charArrayOf('+', '-'))
+                            if (lastOpIdx == -1) {
+                                nextExp += displayKey
+                                val digits = nextExp.filter { it.isDigit() }
+                                if (digits.length > 4) nextExp = digits.takeLast(4)
+                            } else {
+                                val prefix = nextExp.substring(0..lastOpIdx)
+                                val suffix = nextExp.substring(lastOpIdx + 1)
+                                val newSuffix =
+                                    (suffix + displayKey).filter { it.isDigit() }.takeLast(4)
+                                nextExp = prefix + newSuffix
+                            }
+                            setCalculatorState(nextExp, nextRes)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface),
+                    shape = RoundedCornerShape(14.dp),
+                    elevation = ButtonDefaults.buttonElevation(8.dp),
+                    modifier = btnModifier.weight(3f)
+                ) {
+                    Text(
+                        "0",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleLarge.copy(fontSize = 28.sp)
+                    )
+                }
+                Button(
+                    onClick = {
+                        setCalculatorState(
+                            expression,
+                            evaluateTimeExpression(expression)
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB8860B)),
+                    shape = RoundedCornerShape(14.dp),
+                    elevation = ButtonDefaults.buttonElevation(8.dp),
+                    modifier = btnModifier
+                        .weight(1f)
+                        .height(140.dp)
+                ) {
+                    Text(
+                        "=",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        style = MaterialTheme.typography.titleLarge.copy(fontSize = 28.sp)
+                    )
+                }
+            }
+        } else {
+            Box {
+                Column {
+                    val buttonRows = if (calculatorMode == CalculatorMode.TIME) {
+                        listOf(
+                            listOf("⏰", "🕒", "C", "⌫"),
+                            listOf("7", "8", "9", "+"),
+                            listOf("4", "5", "6", "-"),
+                            listOf("1", "2", "3", ""),
+                            listOf("0_wide")
+                        )
+                    } else {
+                        listOf(
+                            listOf("⏰", "🕒", "C", "⌫"),
+                            listOf("7", "8", "9", "÷"),
+                            listOf("4", "5", "6", "×"),
+                            listOf("1", "2", "3", "-"),
+                            listOf("0", ".", "=", "+")
+                        )
+                    }
+                    for ((rowIndex, row) in buttonRows.withIndex()) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            for ((index, key) in row.withIndex()) {
+                                if (key.isEmpty()) {
+                                    // Empty space where no button should be - in time mode row 4, this reserves space for tall = button
+                                    Spacer(modifier = btnModifier.weight(1f))
+                                } else {
+                                    val displayKey = when (key) {
+                                        "0_wide" -> "0"
+                                        else -> key
+                                    }
+                                    val isOp = displayKey in listOf("÷", "×", "-", "+")
+                                    val isEq = displayKey == "="
+                                    val isC = displayKey == "C"
+                                    val isBack = displayKey == "⌫"
+                                    val isTimeBtn = displayKey == "⏰"
+                                    val isTimeCalcBtn = displayKey == "🕒"
+
+                                    // Special handling for button weights
+                                    val buttonWeight = when {
+                                        key == "0_wide" -> 3f + (2 * 8.dp.value / 64.dp.value) // 3 columns + 2 gaps
+                                        else -> 1f
+                                    }
+
+                                    val bgColor = when {
+                                        isEq -> Color(0xFFB8860B)
+                                        isOp -> MaterialTheme.colorScheme.primary
+                                        isC -> MaterialTheme.colorScheme.error
+                                        isBack -> MaterialTheme.colorScheme.primary
+                                        isTimeBtn -> MaterialTheme.colorScheme.secondary
+                                        isTimeCalcBtn -> if (calculatorMode == CalculatorMode.TIME) Color(
+                                            0xFF4CAF50
+                                        ) else MaterialTheme.colorScheme.secondary
+
+                                        else -> MaterialTheme.colorScheme.surface
+                                    }
+                                    val contentColor = when {
+                                        isEq || isOp || isBack || isTimeBtn || isTimeCalcBtn -> MaterialTheme.colorScheme.onPrimary
+                                        isC -> Color.White
+                                        else -> MaterialTheme.colorScheme.onSurface
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            when (displayKey) {
+                                                "C" -> {
+                                                    var nextExp = expression
+                                                    var nextRes = result
+                                                    nextExp = ""; nextRes = ""
+                                                    setCalculatorState(nextExp, nextRes)
+                                                }
+
+                                                "⌫" -> {
+                                                    var nextExp = expression
+                                                    var nextRes = result
+                                                    nextExp =
+                                                        if (nextExp.isNotEmpty()) nextExp.dropLast(1) else ""
+                                                    setCalculatorState(nextExp, nextRes)
+                                                }
+
+                                                "=" -> {
+                                                    var nextExp = expression
+                                                    var nextRes = result
+                                                    if (calculatorMode == CalculatorMode.TIME) {
+                                                        nextRes = evaluateTimeExpression(nextExp)
+                                                    } else {
+                                                        nextRes = eval(nextExp)
+                                                    }
+                                                    setCalculatorState(nextExp, nextRes)
+                                                }
+
+                                                "⏰" -> {
+                                                    onTimeConversionClick()
+                                                }
+
+                                                "🕒" -> {
+                                                    setCalculatorState(
+                                                        "",
+                                                        ""
+                                                    ) // Clear state on toggle
+                                                    onModeChange(if (calculatorMode == CalculatorMode.TIME) CalculatorMode.NORMAL else CalculatorMode.TIME)
+                                                }
+
+                                                else -> {
+                                                    var nextExp = expression
+                                                    var nextRes = result
+                                                    if (calculatorMode == CalculatorMode.TIME) {
+                                                        if (displayKey in "0123456789") {
+                                                            // If no operator yet, build time digits
+                                                            val lastOpIdx =
+                                                                nextExp.lastIndexOfAny(
+                                                                    charArrayOf(
+                                                                        '+',
+                                                                        '-'
+                                                                    )
+                                                                )
+                                                            if (lastOpIdx == -1) {
+                                                                nextExp += displayKey
+                                                                // Limit entry to 4 digits before next operator
+                                                                val digits =
+                                                                    nextExp.filter { it.isDigit() }
+                                                                if (digits.length > 4) nextExp =
+                                                                    digits.takeLast(4)
+                                                            } else {
+                                                                // After an op, start next time part
+                                                                val prefix =
+                                                                    nextExp.substring(0..lastOpIdx)
+                                                                val suffix =
+                                                                    nextExp.substring(lastOpIdx + 1)
+                                                                val newSuffix =
+                                                                    (suffix + displayKey).filter { it.isDigit() }
+                                                                        .takeLast(4)
+                                                                nextExp = prefix + newSuffix
+                                                            }
+                                                            setCalculatorState(nextExp, nextRes)
+                                                        } else if (displayKey == ":") {
+                                                            // ignore direct : on input
+                                                        } else if (displayKey in listOf("+", "-")) {
+                                                            // Only add op if last was a time block
+                                                            if (nextExp.isNotEmpty() && !nextExp.last()
+                                                                    .isWhitespace() && nextExp.last()
+                                                                    .isDigit()
+                                                            ) {
+                                                                nextExp += displayKey
+                                                            }
+                                                            setCalculatorState(nextExp, nextRes)
+                                                        } else {
+                                                            // =, etc. handled as previously
+                                                            // ... fall through to existing logic
+                                                            if (nextRes.isNotEmpty()) {
+                                                                nextExp = displayKey
+                                                                nextRes = ""
+                                                            } else {
+                                                                nextExp += displayKey
+                                                            }
+                                                            setCalculatorState(nextExp, nextRes)
+                                                        }
+                                                    } else {
+                                                        // NORMAL MODE logic unchanged...
+                                                        if (nextRes.isNotEmpty()) {
+                                                            if (displayKey in listOf(
+                                                                    "÷",
+                                                                    "×",
+                                                                    "-",
+                                                                    "+"
+                                                                )
+                                                            ) {
+                                                                nextExp = nextRes + displayKey
+                                                                nextRes = ""
+                                                            } else {
+                                                                nextExp = displayKey
+                                                                nextRes = ""
+                                                            }
+                                                        } else {
+                                                            nextExp += displayKey
+                                                        }
+                                                        setCalculatorState(nextExp, nextRes)
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = bgColor),
+                                        shape = RoundedCornerShape(14.dp),
+                                        elevation = ButtonDefaults.buttonElevation(8.dp),
+                                        modifier = btnModifier.weight(buttonWeight)
+                                    ) {
+                                        if (displayKey == "⏰") {
+                                            Icon(
+                                                Icons.Outlined.Schedule,
+                                                contentDescription = "Time Conversion",
+                                                tint = contentColor
+                                            )
+                                        } else if (displayKey == "🕒") {
+                                            if (calculatorMode == CalculatorMode.NORMAL) {
+                                                Icon(
+                                                    Icons.Outlined.Calculate,
+                                                    contentDescription = "Normal Calculator Mode",
+                                                    tint = contentColor
+                                                )
+                                            } else {
+                                                Icon(
+                                                    Icons.Outlined.Timer,
+                                                    contentDescription = "Time Calculator Mode",
+                                                    tint = contentColor
+                                                )
+                                            }
+                                        } else {
+                                            Text(
+                                                displayKey,
+                                                color = contentColor,
+                                                style = MaterialTheme.typography.titleLarge.copy(
+                                                    fontSize = 28.sp
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if (rowIndex < buttonRows.size - 1 && (calculatorMode != CalculatorMode.TIME || rowIndex != buttonRows.size - 2)) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                    }
+                }
+
+                // Tall equals button for time mode - positioned over the right column of rows 4 and 5
+                if (calculatorMode == CalculatorMode.TIME) {
+                    Button(
+                        onClick = {
+                            var nextExp = expression
+                            var nextRes = result
+                            nextRes = evaluateTimeExpression(nextExp)
+                            setCalculatorState(nextExp, nextRes)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB8860B)),
+                        shape = RoundedCornerShape(14.dp),
+                        elevation = ButtonDefaults.buttonElevation(8.dp),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .height(140.dp)
+                            .padding(
+                                horizontal = 2.dp,
+                                vertical = 2.dp
+                            )
+                            .fillMaxWidth(0.25f - 0.02f) // Approximately 1/4 width minus some padding
+                    ) {
+                        Text(
+                            "=",
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.titleLarge.copy(fontSize = 28.sp)
+                        )
+                    }
+                }
+            }
         }
     }
 }
