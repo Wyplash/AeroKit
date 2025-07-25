@@ -26,7 +26,7 @@ fun AeroTopBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(40.dp)
+            .height(48.dp)
             .background(Color(0xFF001F3F)),
         contentAlignment = Alignment.Center
     ) {

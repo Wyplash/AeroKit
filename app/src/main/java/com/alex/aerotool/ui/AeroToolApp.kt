@@ -1,7 +1,10 @@
 package com.alex.aerotool.ui
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Flight
@@ -22,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import com.alex.aerotool.data.LanguagePreference
 import com.alex.aerotool.ui.screens.ConversionScreen
 import com.alex.aerotool.ui.screens.SettingsScreen
@@ -42,7 +46,7 @@ fun AeroToolApp() {
     val savedLanguage by languagePreference.languageFlow.collectAsState(initial = AppLanguage.ENGLISH)
 
     // Only one ThemeController, not recreated!
-    val themeController = remember { ThemeController(savedLanguage, languagePreference) }
+    val themeController = remember { ThemeController(savedLanguage, languagePreference, context) }
 
     // Keep the controller.language in sync
     LaunchedEffect(savedLanguage) {
@@ -50,6 +54,11 @@ fun AeroToolApp() {
             // Use the update function to guarantee DataStore stays in sync if changed elsewhere
             themeController.updateLanguage(savedLanguage)
         }
+    }
+
+    // Load aircraft preferences from DataStore on app startup
+    LaunchedEffect(Unit) {
+        themeController.loadAircraftPrefs()
     }
 
     // --------- Custom abbreviations state (list) for sharing between screens ---------
@@ -73,43 +82,45 @@ fun AeroToolApp() {
             val unselected = AviationDarkGrey
             Scaffold(
                 bottomBar = {
-                    NavigationBar {
-                        NavigationBarItem(
-                            selected = bottomTab == 0,
-                            onClick = { bottomTab = 0 },
-                            icon = {
-                                Icon(
-                                    Icons.Outlined.Flight,
-                                    contentDescription = "Tools",
-                                    tint = if (bottomTab == 0) gold else unselected
-                                )
-                            },
-                            label = { Text("Tools") }
-                        )
-                        NavigationBarItem(
-                            selected = bottomTab == 1,
-                            onClick = { bottomTab = 1 },
-                            icon = {
-                                Icon(
-                                    Icons.Outlined.Transform,
-                                    contentDescription = "Convert",
-                                    tint = if (bottomTab == 1) gold else unselected
-                                )
-                            },
-                            label = { Text("Convert") }
-                        )
-                        NavigationBarItem(
-                            selected = bottomTab == 2,
-                            onClick = { bottomTab = 2 },
-                            icon = {
-                                Icon(
-                                    Icons.Outlined.Settings,
-                                    contentDescription = "Settings",
-                                    tint = if (bottomTab == 2) gold else unselected
-                                )
-                            },
-                            label = { Text("Settings") }
-                        )
+                    Box(Modifier.height(80.dp)) {
+                        NavigationBar(modifier = Modifier.fillMaxWidth()) {
+                            NavigationBarItem(
+                                selected = bottomTab == 0,
+                                onClick = { bottomTab = 0 },
+                                icon = {
+                                    Icon(
+                                        Icons.Outlined.Flight,
+                                        contentDescription = "Tools",
+                                        tint = if (bottomTab == 0) gold else unselected
+                                    )
+                                },
+                                label = { Text("Tools") }
+                            )
+                            NavigationBarItem(
+                                selected = bottomTab == 1,
+                                onClick = { bottomTab = 1 },
+                                icon = {
+                                    Icon(
+                                        Icons.Outlined.Transform,
+                                        contentDescription = "Convert",
+                                        tint = if (bottomTab == 1) gold else unselected
+                                    )
+                                },
+                                label = { Text("Convert") }
+                            )
+                            NavigationBarItem(
+                                selected = bottomTab == 2,
+                                onClick = { bottomTab = 2 },
+                                icon = {
+                                    Icon(
+                                        Icons.Outlined.Settings,
+                                        contentDescription = "Settings",
+                                        tint = if (bottomTab == 2) gold else unselected
+                                    )
+                                },
+                                label = { Text("Settings") }
+                            )
+                        }
                     }
                 }
             ) { padding ->
