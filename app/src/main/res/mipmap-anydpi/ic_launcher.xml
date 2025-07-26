@@ -1,6 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@drawable/ic_launcher_background" />
-    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <background android:color="#222C37" />
+    <foreground>
+        <vector xmlns:android="http://schemas.android.com/apk/res/android"
+            android:width="108dp"
+            android:height="108dp"
+            android:viewportWidth="108"
+            android:viewportHeight="108">
+            <!-- Plane (simplified, bold gold) -->
+            <path
+                android:fillColor="#FFD700"
+                android:pathData="M29,33l50,12l-18,4l6,11l-8,2l-7,-14l-12,6l6,-13z" />
+            <!-- Gear (simple, left-bottom) -->
+            <path
+                android:fillColor="#FFD700"
+                android:pathData="M32,72a8,8 0 1,0 16,0a8,8 0 1,0 -16,0M34,72h12M38,66v12" />
+            <!-- Calculator (right) -->
+            <rect
+                android:fillColor="#FFD700"
+                android:x="62"
+                android:y="55"
+                android:width="30"
+                android:height="25" />
+            <rect
+                android:fillColor="#222C37"
+                android:x="66"
+                android:y="59"
+                android:width="6"
+                android:height="6" />
+            <rect
+                android:fillColor="#222C37"
+                android:x="74"
+                android:y="59"
+                android:width="6"
+                android:height="6" />
+            <rect
+                android:fillColor="#222C37"
+                android:x="82"
+                android:y="59"
+                android:width="6"
+                android:height="6" />
+            <rect
+                android:fillColor="#222C37"
+                android:x="66"
+                android:y="67"
+                android:width="6"
+                android:height="6" />
+            <rect
+                android:fillColor="#222C37"
+                android:x="74"
+                android:y="67"
+                android:width="6"
+                android:height="6" />
+            <rect
+                android:fillColor="#222C37"
+                android:x="82"
+                android:y="67"
+                android:width="6"
+                android:height="14" />
+            <rect
+                android:fillColor="#222C37"
+                android:x="66"
+                android:y="75"
+                android:width="14"
+                android:height="6" />
+            <!-- Conversion arrows (below, gold stroke) -->
+            <path
+                android:strokeColor="#FFD700"
+                android:strokeWidth="3"
+                android:fillColor="#00000000"
+                android:strokeLineCap="round"
+                android:strokeLineJoin="round"
+                android:pathData="M38,84c5,4 14,4 19,0" />
+            <path
+                android:strokeColor="#FFD700"
+                android:strokeWidth="3"
+                android:fillColor="#00000000"
+                android:strokeLineCap="round"
+                android:strokeLineJoin="round"
+                android:pathData="M9,90l-6,6l6,6" />
+            <path
+                android:strokeColor="#FFD700"
+                android:strokeWidth="3"
+                android:fillColor="#00000000"
+                android:strokeLineCap="round"
+                android:strokeLineJoin="round"
+                android:pathData="M99,90l6,6l-6,6" />
+        </vector>
+    </foreground>
     <monochrome android:drawable="@drawable/ic_launcher_foreground" />
 </adaptive-icon>
