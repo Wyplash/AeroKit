@@ -1,5 +1,6 @@
 package com.alex.aerotool.ui.screens
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -51,6 +52,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import kotlin.math.roundToInt
 import kotlin.math.abs
 import com.alex.aerotool.ui.theme.ThemeController
@@ -59,6 +61,17 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.ui.text.font.FontWeight
 import kotlin.math.absoluteValue
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 
 fun Double.roundMost(): String {
     val roundable =
@@ -178,6 +191,43 @@ fun WeightConversionScreen(
             )
         )
     }
+    var isRestored by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    @Serializable
+    private data class PersistedUnitCard(val unitKey: String, val value: String)
+
+    private val Context.weightUnitCardsDataStore by preferencesDataStore("conversion_unit_cards")
+    private val WEIGHT_UNIT_CARDS_KEY = stringPreferencesKey("weight_unit_cards")
+
+    LaunchedEffect(Unit) {
+        val prefs = context.weightUnitCardsDataStore.data.first()
+        val cardsString = prefs[WEIGHT_UNIT_CARDS_KEY]
+        if (cardsString != null) {
+            try {
+                val persisted: List<PersistedUnitCard> = Json.decodeFromString(cardsString)
+                unitCards = persisted.map { UnitCard(it.unitKey, it.value) }
+            } catch (_: Exception) {
+            }
+        }
+        isRestored = true
+    }
+
+    fun persistCards(newList: List<UnitCard>) {
+        scope.launch {
+            context.weightUnitCardsDataStore.edit { prefs ->
+                prefs[WEIGHT_UNIT_CARDS_KEY] =
+                    Json.encodeToString(newList.map { PersistedUnitCard(it.unitKey, it.value) })
+            }
+        }
+    }
+
+    fun setUnitCards(newList: List<UnitCard>) {
+        unitCards = newList
+        persistCards(newList)
+    }
 
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffsetY by remember { mutableStateOf(0f) }
@@ -188,7 +238,7 @@ fun WeightConversionScreen(
         val list = unitCards.toMutableList()
         list.removeAt(from)
         list.add(to, item)
-        unitCards = list
+        setUnitCards(list)
     }
 
     fun recalcAll(fromIdx: Int, text: String) {
@@ -196,13 +246,13 @@ fun WeightConversionScreen(
         val fromDef = unitDefs.first { it.key == fromCard.unitKey }
         val fromValue = text.toDoubleOrNull() ?: return
         val kgValue = fromDef.toBase(fromValue)
-        unitCards = unitCards.mapIndexed { idx, card ->
+        setUnitCards(unitCards.mapIndexed { idx, card ->
             val def = unitDefs.first { it.key == card.unitKey }
             if (idx == fromIdx) card.copy(value = text)
             else card.copy(
                 value = if (text.isBlank()) "" else (def.fromBase(kgValue).roundMost()).toString()
             )
-        }
+        })
     }
 
     fun addUnitCard() {
@@ -221,7 +271,7 @@ fun WeightConversionScreen(
                 if (baseCard.value.isBlank()) "" else def.fromBase(kgValue).roundMost()
             )
         } else UnitCard(newKey, "")
-        unitCards = unitCards + card
+        setUnitCards(unitCards + card)
         val idxToUpdate = unitCards.indexOfFirst { it.value.isNotBlank() }
         if (idxToUpdate != -1) {
             val text = unitCards[idxToUpdate].value
@@ -231,14 +281,14 @@ fun WeightConversionScreen(
 
     fun removeCard(idx: Int) {
         if (unitCards.size <= 2) return
-        unitCards = unitCards.filterIndexed { i, _ -> i != idx }
+        setUnitCards(unitCards.filterIndexed { i, _ -> i != idx })
     }
 
     fun changeCardUnit(idx: Int, key: String) {
         if (unitCards.any { it.unitKey == key }) return
-        unitCards = unitCards.mapIndexed { i, it ->
+        setUnitCards(unitCards.mapIndexed { i, it ->
             if (i == idx) it.copy(unitKey = key, value = "") else it
-        }
+        })
     }
 
     var showUnitPicker by remember { mutableStateOf(false) }
@@ -249,6 +299,17 @@ fun WeightConversionScreen(
     var activeUnitSearch by remember { mutableStateOf("") }
 
     val availableUnits = unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } }
+    // Effect: When number of cards grows, auto-convert using first non-blank
+    LaunchedEffect(unitCards.size) {
+        if (unitCards.size > 2) {
+            val idxToUpdate = unitCards.indexOfFirst { it.value.isNotBlank() }
+            if (idxToUpdate != -1) {
+                val text = unitCards[idxToUpdate].value
+                recalcAll(idxToUpdate, text)
+            }
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -442,8 +503,8 @@ fun WeightConversionScreen(
                                     Icon(
                                         Icons.Default.Menu,
                                         contentDescription = "Move",
-                                            modifier = Modifier.size(28.dp)
-                                        )
+                                        modifier = Modifier.size(28.dp)
+                                    )
                                 }
                                 Column(
                                     Modifier
@@ -480,7 +541,6 @@ fun WeightConversionScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.End
                                 ) {
-                                    var fieldValue by remember { mutableStateOf(card.value) }
                                     Box(
                                         Modifier
                                             .fillMaxWidth(0.46f)
@@ -490,10 +550,25 @@ fun WeightConversionScreen(
                                             Modifier.matchParentSize(),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
+                                            // Per-card field value
+                                            var fieldValue by remember(card.unitKey) {
+                                                mutableStateOf(
+                                                    card.value
+                                                )
+                                            }
+
+                                            // Sync local field with card.value when cards move or update externally
+                                            LaunchedEffect(card.value) {
+                                                if (card.value != fieldValue) fieldValue =
+                                                    card.value
+                                            }
                                             OutlinedTextField(
                                                 value = fieldValue,
                                                 onValueChange = {
-                                                    fieldValue = it; recalcAll(idx, it)
+                                                    fieldValue = it
+                                                    setUnitCards(unitCards.mapIndexed { i, c ->
+                                                        if (i == idx) c.copy(value = it) else c
+                                                    })
                                                 },
                                                 label = null,
                                                 singleLine = true,
@@ -506,6 +581,7 @@ fun WeightConversionScreen(
                                                     fontWeight = FontWeight.Medium
                                                 ),
                                                 keyboardOptions = KeyboardOptions.Default.copy(
+                                                    keyboardType = KeyboardType.Decimal,
                                                     imeAction = ImeAction.Done
                                                 ),
                                                 keyboardActions = KeyboardActions(onDone = {
@@ -653,7 +729,7 @@ fun WeightConversionScreen(
                                 Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        unitCards = unitCards + UnitCard(u.key, "")
+                                        setUnitCards(unitCards + UnitCard(u.key, ""))
                                         showUnitPicker = false
                                         unitSearch = ""
                                     }

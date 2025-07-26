@@ -23,6 +23,7 @@ import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -110,11 +111,21 @@ fun TemperatureConversionScreen(
                 if (baseCard.value.isBlank()) "" else def.fromBase(base).roundMostTemp(2)
             )
         } else UnitCard(newKey, "")
-        unitCards = unitCards + card
-        val idxToUpdate = unitCards.indexOfFirst { it.value.isNotBlank() }
+        val newCards = unitCards + card
+        val idxToUpdate = newCards.indexOfFirst { it.value.isNotBlank() }
         if (idxToUpdate != -1) {
-            val text = unitCards[idxToUpdate].value
-            recalcAll(idxToUpdate, text)
+            val text = newCards[idxToUpdate].value
+            val fromCard = newCards.getOrNull(idxToUpdate) ?: return
+            val fromDef = unitDefs.first { it.key == fromCard.unitKey }
+            val fromValue = text.toDoubleOrNull() ?: return
+            val base = fromDef.toBase(fromValue)
+            unitCards = newCards.mapIndexed { idx, c ->
+                val def = unitDefs.first { it.key == c.unitKey }
+                if (idx == idxToUpdate) c.copy(value = text)
+                else c.copy(value = if (text.isBlank()) "" else def.fromBase(base).roundMostTemp(2))
+            }
+        } else {
+            unitCards = newCards
         }
     }
 
@@ -287,7 +298,37 @@ fun TemperatureConversionScreen(
                                     .padding(horizontal = 10.dp, vertical = 6.dp)
                             ) {
                                 Box(
-                                    Modifier.padding(start = 5.dp),
+                                    Modifier
+                                        .padding(start = 5.dp)
+                                        .pointerInput(idx, draggedIndex) {
+                                            detectDragGestures(
+                                                onDragStart = {
+                                                    draggedIndex = idx; dragOffsetY = 0f
+                                                },
+                                                onDrag = { change, dragAmount ->
+                                                    change.consumeAllChanges()
+                                                    dragOffsetY += dragAmount.y
+                                                    val swapIdx = when {
+                                                        dragAmount.y < 0 && idx > 0 && dragOffsetY.absoluteValue > 50 -> idx - 1
+
+                                                        dragAmount.y > 0 && idx < unitCards.lastIndex && dragOffsetY.absoluteValue > 50 -> idx + 1
+
+                                                        else -> null
+                                                    }
+                                                    if (swapIdx != null) {
+                                                        moveItem(idx, swapIdx)
+                                                        draggedIndex = swapIdx
+                                                        dragOffsetY = 0f
+                                                    }
+                                                },
+                                                onDragEnd = {
+                                                    draggedIndex = null; dragOffsetY = 0f
+                                                },
+                                                onDragCancel = {
+                                                    draggedIndex = null; dragOffsetY = 0f
+                                                }
+                                            )
+                                        },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -330,7 +371,10 @@ fun TemperatureConversionScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.End
                                 ) {
-                                    var fieldValue by remember { mutableStateOf(card.value) }
+                                    var fieldValue by remember(card.unitKey) { mutableStateOf(card.value) }
+                                    LaunchedEffect(card.value) {
+                                        if (card.value != fieldValue) fieldValue = card.value
+                                    }
                                     Box(
                                         Modifier
                                             .fillMaxWidth(0.46f)
@@ -343,7 +387,10 @@ fun TemperatureConversionScreen(
                                             OutlinedTextField(
                                                 value = fieldValue,
                                                 onValueChange = {
-                                                    fieldValue = it; recalcAll(idx, it)
+                                                    fieldValue = it
+                                                    unitCards = unitCards.mapIndexed { i, c ->
+                                                        if (i == idx) c.copy(value = it) else c
+                                                    }
                                                 },
                                                 label = null,
                                                 singleLine = true,
@@ -356,6 +403,7 @@ fun TemperatureConversionScreen(
                                                     fontWeight = FontWeight.Medium
                                                 ),
                                                 keyboardOptions = KeyboardOptions.Default.copy(
+                                                    keyboardType = KeyboardType.Decimal,
                                                     imeAction = ImeAction.Done
                                                 ),
                                                 keyboardActions = KeyboardActions(onDone = {
@@ -472,6 +520,16 @@ fun TemperatureConversionScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+    // Effect: When number of cards grows, auto-convert using first non-blank
+    LaunchedEffect(unitCards.size) {
+        if (unitCards.size > 2) { // Cards added (ignore initial 2)
+            val idxToUpdate = unitCards.indexOfFirst { it.value.isNotBlank() }
+            if (idxToUpdate != -1) {
+                val text = unitCards[idxToUpdate].value
+                recalcAll(idxToUpdate, text)
             }
         }
     }
