@@ -133,303 +133,338 @@ fun SpeedConversionScreen(
     val availableUnits = unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } }
 
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize()
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            itemsIndexed(unitCards, key = { _, it -> it.unitKey }) { idx, card ->
-                val unit = unitDefs.first { it.key == card.unitKey }
-                val isFirst = idx == 0
-                val trashRevealOffset = 90f
-                var cardOpen by remember(card.unitKey) { mutableStateOf(false) }
-                var swipeOffset by remember(card.unitKey) { mutableStateOf(0f) }
-                var actuallyDeleting by remember { mutableStateOf(false) }
-                val dragProgress = (swipeOffset / trashRevealOffset).coerceIn(0f, 1f)
-                val canDelete = unitCards.size > 2
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 64.dp)
-                ) {
-                    if (canDelete && (cardOpen || swipeOffset > 4f)) {
-                        Box(
-                            Modifier
-                                .fillMaxHeight()
-                                .align(Alignment.CenterStart),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
-                                Modifier
-                                    .size((36 + 12 * dragProgress).dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.error.copy(
-                                            alpha = 0.19f + 0.12f * dragProgress
-                                        ),
-                                        RoundedCornerShape(12.dp)
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Remove",
-                                    tint = MaterialTheme.colorScheme.error.copy(
-                                        alpha = 0.7f + 0.3f * dragProgress
-                                    ),
-                                    modifier = Modifier
-                                        .size((22 + 8 * dragProgress).dp)
-                                        .clickable(enabled = !actuallyDeleting) {
-                                            actuallyDeleting = true
-                                            removeCard(idx)
-                                            cardOpen = false
-                                            swipeOffset = 0f
-                                            actuallyDeleting = false
-                                        }
-                                )
-                            }
-                        }
-                    }
-                    Card(
+            Spacer(Modifier.height(11.dp))
+            Icon(
+                imageVector = Icons.Filled.Speed,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(38.dp)
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Speed",
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                "Enter a value in any speed unit",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            LazyColumn(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                itemsIndexed(unitCards, key = { _, it -> it.unitKey }) { idx, card ->
+                    val unit = unitDefs.first { it.key == card.unitKey }
+                    val isFirst = idx == 0
+                    val trashRevealOffset = 90f
+                    var cardOpen by remember(card.unitKey) { mutableStateOf(false) }
+                    var swipeOffset by remember(card.unitKey) { mutableStateOf(0f) }
+                    var actuallyDeleting by remember { mutableStateOf(false) }
+                    val dragProgress = (swipeOffset / trashRevealOffset).coerceIn(0f, 1f)
+                    val canDelete = unitCards.size > 2
+                    Box(
                         Modifier
                             .fillMaxWidth()
-                            .offset {
-                                IntOffset(
-                                    (if (cardOpen) trashRevealOffset else swipeOffset).roundToInt(),
-                                    0
-                                )
-                            }
-                            .padding(horizontal = 16.dp, vertical = 5.dp)
-                            .background(
-                                if (cardOpen || swipeOffset > 0f)
-                                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.13f)
-                                else MaterialTheme.colorScheme.surfaceVariant,
-                                RoundedCornerShape(20.dp)
-                            )
-                            .then(
-                                if (canDelete)
-                                    Modifier.pointerInput(card.unitKey, unitCards.size) {
-                                        detectDragGestures(
-                                            onDragStart = {},
-                                            onDrag = { change, dragAmount ->
-                                                change.consumeAllChanges()
-                                                if (cardOpen && dragAmount.x < 0) {
-                                                    val closingOffset =
-                                                        (trashRevealOffset + dragAmount.x).coerceIn(
-                                                            0f,
-                                                            trashRevealOffset
-                                                        )
-                                                    swipeOffset = closingOffset
-                                                } else if (!cardOpen && dragAmount.x > 0 && dragAmount.y.absoluteValue < 30f) {
-                                                    val openOffset =
-                                                        (swipeOffset + dragAmount.x).coerceIn(
-                                                            0f,
-                                                            trashRevealOffset
-                                                        )
-                                                    swipeOffset = openOffset
-                                                }
-                                            },
-                                            onDragEnd = {
-                                                if ((!cardOpen && swipeOffset > trashRevealOffset * 0.5f) || (cardOpen && swipeOffset > trashRevealOffset * 0.5f)) {
-                                                    cardOpen = true
-                                                    swipeOffset = trashRevealOffset
-                                                } else {
-                                                    cardOpen = false
-                                                    swipeOffset = 0f
-                                                }
-                                            },
-                                            onDragCancel = {
-                                                swipeOffset =
-                                                    if (cardOpen) trashRevealOffset else 0f
-                                            }
-                                        )
-                                    }
-                                else Modifier
-                            ),
-                        shape = RoundedCornerShape(20.dp),
-                        border = if (isFirst) androidx.compose.foundation.BorderStroke(
-                            2.dp,
-                            MaterialTheme.colorScheme.outline
-                        ) else null,
-                        elevation = CardDefaults.cardElevation(defaultElevation = if (cardOpen || swipeOffset > 0f) 10.dp else 2.dp)
+                            .heightIn(min = 64.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .heightIn(min = 64.dp)
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
+                        if (canDelete && (cardOpen || swipeOffset > 4f)) {
                             Box(
-                                Modifier.padding(start = 5.dp),
+                                Modifier
+                                    .fillMaxHeight()
+                                    .align(Alignment.CenterStart),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    Icons.Default.Menu,
-                                    contentDescription = "Move",
-                                    modifier = Modifier.size(28.dp)
-                                )
-                            }
-                            Column(
-                                Modifier
-                                    .weight(2.2f)
-                                    .padding(start = 12.dp, end = 2.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        unit.emoji,
-                                        fontSize = MaterialTheme.typography.bodyLarge.fontSize,
-                                        modifier = Modifier.padding(end = 8.dp)
-                                    )
-                                    Text(
-                                        unit.label,
-                                        style = MaterialTheme.typography.titleLarge,
-                                        modifier = Modifier.clickable {
-                                            activeUnitPickerIdx = idx; activeUnitSearch = ""
-                                        }
-                                    )
-                                    Spacer(Modifier.width(4.dp))
+                                Box(
+                                    Modifier
+                                        .size((36 + 12 * dragProgress).dp)
+                                        .background(
+                                            MaterialTheme.colorScheme.error.copy(
+                                                alpha = 0.19f + 0.12f * dragProgress
+                                            ),
+                                            RoundedCornerShape(12.dp)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
                                     Icon(
-                                        imageVector = Icons.Default.ArrowDropDown,
-                                        contentDescription = null,
+                                        Icons.Default.Delete,
+                                        contentDescription = "Remove",
+                                        tint = MaterialTheme.colorScheme.error.copy(
+                                            alpha = 0.7f + 0.3f * dragProgress
+                                        ),
                                         modifier = Modifier
-                                            .size(18.dp)
-                                            .clickable {
-                                                activeUnitPickerIdx = idx; activeUnitSearch = ""
+                                            .size((22 + 8 * dragProgress).dp)
+                                            .clickable(enabled = !actuallyDeleting) {
+                                                actuallyDeleting = true
+                                                removeCard(idx)
+                                                cardOpen = false
+                                                swipeOffset = 0f
+                                                actuallyDeleting = false
                                             }
                                     )
                                 }
                             }
+                        }
+                        Card(
+                            Modifier
+                                .fillMaxWidth()
+                                .offset {
+                                    IntOffset(
+                                        (if (cardOpen) trashRevealOffset else swipeOffset).roundToInt(),
+                                        0
+                                    )
+                                }
+                                .padding(horizontal = 16.dp, vertical = 5.dp)
+                                .background(
+                                    if (cardOpen || swipeOffset > 0f)
+                                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.13f)
+                                    else MaterialTheme.colorScheme.surfaceVariant,
+                                    RoundedCornerShape(20.dp)
+                                )
+                                .then(
+                                    if (canDelete)
+                                        Modifier.pointerInput(card.unitKey, unitCards.size) {
+                                            detectDragGestures(
+                                                onDragStart = {},
+                                                onDrag = { change, dragAmount ->
+                                                    change.consumeAllChanges()
+                                                    if (cardOpen && dragAmount.x < 0) {
+                                                        val closingOffset =
+                                                            (trashRevealOffset + dragAmount.x).coerceIn(
+                                                                0f,
+                                                                trashRevealOffset
+                                                            )
+                                                        swipeOffset = closingOffset
+                                                    } else if (!cardOpen && dragAmount.x > 0 && dragAmount.y.absoluteValue < 30f) {
+                                                        val openOffset =
+                                                            (swipeOffset + dragAmount.x).coerceIn(
+                                                                0f,
+                                                                trashRevealOffset
+                                                            )
+                                                        swipeOffset = openOffset
+                                                    }
+                                                },
+                                                onDragEnd = {
+                                                    if ((!cardOpen && swipeOffset > trashRevealOffset * 0.5f) || (cardOpen && swipeOffset > trashRevealOffset * 0.5f)) {
+                                                        cardOpen = true
+                                                        swipeOffset = trashRevealOffset
+                                                    } else {
+                                                        cardOpen = false
+                                                        swipeOffset = 0f
+                                                    }
+                                                },
+                                                onDragCancel = {
+                                                    swipeOffset =
+                                                        if (cardOpen) trashRevealOffset else 0f
+                                                }
+                                            )
+                                        }
+                                    else Modifier
+                                ),
+                            shape = RoundedCornerShape(20.dp),
+                            border = if (isFirst) androidx.compose.foundation.BorderStroke(
+                                2.dp,
+                                MaterialTheme.colorScheme.outline
+                            ) else null,
+                            elevation = CardDefaults.cardElevation(defaultElevation = if (cardOpen || swipeOffset > 0f) 10.dp else 2.dp)
+                        ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.End
+                                modifier = Modifier
+                                    .heightIn(min = 64.dp)
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
                             ) {
-                                var fieldValue by remember { mutableStateOf(card.value) }
                                 Box(
-                                    Modifier
-                                        .fillMaxWidth(0.46f)
-                                        .height(56.dp)
+                                    Modifier.padding(start = 5.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Row(
-                                        Modifier.matchParentSize(),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        OutlinedTextField(
-                                            value = fieldValue,
-                                            onValueChange = {
-                                                fieldValue = it; recalcAll(idx, it)
-                                            },
-                                            label = null,
-                                            singleLine = true,
-                                            maxLines = 1,
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .fillMaxHeight(),
-                                            textStyle = MaterialTheme.typography.bodyLarge.copy(
-                                                textAlign = TextAlign.End,
-                                                fontWeight = FontWeight.Medium
-                                            ),
-                                            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
-                                            keyboardActions = KeyboardActions(onDone = {
-                                                recalcAll(idx, fieldValue)
-                                            })
+                                    Icon(
+                                        Icons.Default.Menu,
+                                        contentDescription = "Move",
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+                                Column(
+                                    Modifier
+                                        .weight(2.2f)
+                                        .padding(start = 12.dp, end = 2.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            unit.emoji,
+                                            fontSize = MaterialTheme.typography.bodyLarge.fontSize,
+                                            modifier = Modifier.padding(end = 8.dp)
                                         )
                                         Text(
-                                            unit.abbr,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier
-                                                .padding(start = 8.dp, end = 6.dp)
-                                                .widthIn(min = 32.dp)
-                                                .align(Alignment.CenterVertically),
-                                            textAlign = TextAlign.End
+                                            unit.label,
+                                            style = MaterialTheme.typography.titleLarge,
+                                            modifier = Modifier.clickable {
+                                                activeUnitPickerIdx = idx; activeUnitSearch = ""
+                                            }
                                         )
+                                        Spacer(Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowDropDown,
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .size(18.dp)
+                                                .clickable {
+                                                    activeUnitPickerIdx = idx; activeUnitSearch = ""
+                                                }
+                                        )
+                                    }
+                                }
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    var fieldValue by remember { mutableStateOf(card.value) }
+                                    Box(
+                                        Modifier
+                                            .fillMaxWidth(0.46f)
+                                            .height(56.dp)
+                                    ) {
+                                        Row(
+                                            Modifier.matchParentSize(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            OutlinedTextField(
+                                                value = fieldValue,
+                                                onValueChange = {
+                                                    fieldValue = it; recalcAll(idx, it)
+                                                },
+                                                label = null,
+                                                singleLine = true,
+                                                maxLines = 1,
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .fillMaxHeight(),
+                                                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                                    textAlign = TextAlign.End,
+                                                    fontWeight = FontWeight.Medium
+                                                ),
+                                                keyboardOptions = KeyboardOptions.Default.copy(
+                                                    imeAction = ImeAction.Done
+                                                ),
+                                                keyboardActions = KeyboardActions(onDone = {
+                                                    recalcAll(idx, fieldValue)
+                                                })
+                                            )
+                                            Text(
+                                                unit.abbr,
+                                                style = MaterialTheme.typography.titleMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier
+                                                    .padding(start = 8.dp, end = 6.dp)
+                                                    .widthIn(min = 32.dp)
+                                                    .align(Alignment.CenterVertically),
+                                                textAlign = TextAlign.End
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                    if (activeUnitPickerIdx == idx) {
-                        val availableUnits =
-                            unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } || def.key == card.unitKey }
-                        AlertDialog(
-                            onDismissRequest = { activeUnitPickerIdx = null },
-                            title = { Text("Units") },
-                            text = {
-                                Column {
-                                    OutlinedTextField(
-                                        value = activeUnitSearch,
-                                        onValueChange = { activeUnitSearch = it },
-                                        label = { Text("Search units") },
-                                        singleLine = true,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                    Spacer(Modifier.height(10.dp))
-                                    val filtered = availableUnits.filter {
-                                        it.label.contains(
-                                            activeUnitSearch,
-                                            ignoreCase = true
+                        if (activeUnitPickerIdx == idx) {
+                            val availableUnits =
+                                unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } || def.key == card.unitKey }
+                            AlertDialog(
+                                onDismissRequest = { activeUnitPickerIdx = null },
+                                title = { Text("Units") },
+                                text = {
+                                    Column {
+                                        OutlinedTextField(
+                                            value = activeUnitSearch,
+                                            onValueChange = { activeUnitSearch = it },
+                                            label = { Text("Search units") },
+                                            singleLine = true,
+                                            modifier = Modifier.fillMaxWidth()
                                         )
-                                    }
-                                    LazyColumn(Modifier.heightIn(max = 350.dp)) {
-                                        itemsIndexed(filtered) { _, u ->
-                                            Row(
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .clickable {
-                                                        changeCardUnit(idx, u.key)
-                                                        activeUnitPickerIdx = null
-                                                        activeUnitSearch = ""
-                                                    }
-                                                    .padding(vertical = 10.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    u.emoji,
-                                                    fontSize = MaterialTheme.typography.headlineSmall.fontSize,
-                                                    modifier = Modifier.padding(end = 12.dp)
-                                                )
-                                                Column {
+                                        Spacer(Modifier.height(10.dp))
+                                        val filtered = availableUnits.filter {
+                                            it.label.contains(
+                                                activeUnitSearch,
+                                                ignoreCase = true
+                                            )
+                                        }
+                                        LazyColumn(Modifier.heightIn(max = 350.dp)) {
+                                            itemsIndexed(filtered) { _, u ->
+                                                Row(
+                                                    Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable {
+                                                            changeCardUnit(idx, u.key)
+                                                            activeUnitPickerIdx = null
+                                                            activeUnitSearch = ""
+                                                        }
+                                                        .padding(vertical = 10.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
                                                     Text(
-                                                        u.label,
-                                                        style = MaterialTheme.typography.bodyLarge
+                                                        u.emoji,
+                                                        fontSize = MaterialTheme.typography.headlineSmall.fontSize,
+                                                        modifier = Modifier.padding(end = 12.dp)
                                                     )
+                                                    Column {
+                                                        Text(
+                                                            u.label,
+                                                            style = MaterialTheme.typography.bodyLarge
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
                                     }
+                                },
+                                confirmButton = {},
+                                dismissButton = {
+                                    TextButton(onClick = {
+                                        activeUnitPickerIdx = null
+                                    }) { Text("Cancel") }
                                 }
-                            },
-                            confirmButton = {},
-                            dismissButton = {
-                                TextButton(onClick = { activeUnitPickerIdx = null }) { Text("Cancel") }
-                            }
+                            )
+                        }
+                    }
+                }
+                item {
+                    Row(
+                        Modifier
+                            .padding(start = 24.dp, top = 4.dp, bottom = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "↳",
+                            fontSize = MaterialTheme.typography.headlineMedium.fontSize,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(end = 3.dp)
+                        )
+                        Text(
+                            "Drag to reorder",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-            }
-            item {
-                Row(
-                    Modifier
-                        .padding(start = 24.dp, top = 4.dp, bottom = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "↳",
-                        fontSize = MaterialTheme.typography.headlineMedium.fontSize,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(end = 3.dp)
-                    )
-                    Text("Drag to reorder", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            if (availableUnits.isNotEmpty()) {
-                item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                        Button(
-                            onClick = { showUnitPicker = true },
-                            shape = RoundedCornerShape(20.dp),
-                            modifier = Modifier
-                                .padding(vertical = 3.dp)
-                                .size(64.dp)
-                        ) {
-                            Text("+", style = MaterialTheme.typography.headlineMedium)
+                if (availableUnits.isNotEmpty()) {
+                    item {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                            Button(
+                                onClick = { showUnitPicker = true },
+                                shape = RoundedCornerShape(20.dp),
+                                modifier = Modifier
+                                    .padding(vertical = 3.dp)
+                                    .size(64.dp)
+                            ) {
+                                Text("+", style = MaterialTheme.typography.headlineMedium)
+                            }
                         }
                     }
                 }
