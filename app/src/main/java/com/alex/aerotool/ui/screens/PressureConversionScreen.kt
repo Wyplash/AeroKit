@@ -31,6 +31,25 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlin.math.absoluteValue
+import android.content.Context
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import kotlin.collections.map
+
+@Serializable
+data class PersistedPressureUnitCard(val unitKey: String, val value: String)
+
+val Context.pressureUnitCardsDataStore by preferencesDataStore("pressure_unit_cards")
+val PRESSURE_UNIT_CARDS_KEY = stringPreferencesKey("pressure_unit_cards")
 
 @Composable
 fun PressureConversionScreen(
@@ -66,6 +85,42 @@ fun PressureConversionScreen(
             )
         )
     }
+    var isRestored by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        val prefs = context.pressureUnitCardsDataStore.data.first()
+        val cardsString = prefs[PRESSURE_UNIT_CARDS_KEY]
+        if (cardsString != null) {
+            try {
+                val persisted: List<PersistedPressureUnitCard> = Json.decodeFromString(cardsString)
+                unitCards = persisted.map { UnitCard(it.unitKey, it.value) }
+            } catch (_: Exception) {
+            }
+        }
+        isRestored = true
+    }
+
+    fun persistCards(newList: List<UnitCard>) {
+        scope.launch {
+            context.pressureUnitCardsDataStore.edit { prefs ->
+                prefs[PRESSURE_UNIT_CARDS_KEY] =
+                    Json.encodeToString(newList.map {
+                        PersistedPressureUnitCard(
+                            it.unitKey,
+                            it.value
+                        )
+                    })
+            }
+        }
+    }
+
+    fun setUnitCards(newList: List<UnitCard>) {
+        unitCards = newList
+        persistCards(newList)
+    }
+
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffsetY by remember { mutableStateOf(0f) }
 
@@ -75,7 +130,7 @@ fun PressureConversionScreen(
         val list = unitCards.toMutableList()
         list.removeAt(from)
         list.add(to, item)
-        unitCards = list
+        setUnitCards(list)
     }
 
     fun recalcAll(fromIdx: Int, text: String) {
@@ -83,11 +138,11 @@ fun PressureConversionScreen(
         val fromDef = unitDefs.first { it.key == fromCard.unitKey }
         val fromValue = text.toDoubleOrNull() ?: return
         val base = fromDef.toBase(fromValue)
-        unitCards = unitCards.mapIndexed { idx, card ->
+        setUnitCards(unitCards.mapIndexed { idx, card ->
             val def = unitDefs.first { it.key == card.unitKey }
             if (idx == fromIdx) card.copy(value = text)
             else card.copy(value = if (text.isBlank()) "" else def.fromBase(base).toString())
-        }
+        })
     }
 
     fun addUnitCard() {
@@ -103,7 +158,7 @@ fun PressureConversionScreen(
             val def = unitDefs.first { it.key == newKey }
             UnitCard(newKey, if (baseCard.value.isBlank()) "" else def.fromBase(base).toString())
         } else UnitCard(newKey, "")
-        unitCards = unitCards + card
+        setUnitCards(unitCards + card)
         val idxToUpdate = unitCards.indexOfFirst { it.value.isNotBlank() }
         if (idxToUpdate != -1) {
             val text = unitCards[idxToUpdate].value
@@ -113,14 +168,14 @@ fun PressureConversionScreen(
 
     fun removeCard(idx: Int) {
         if (unitCards.size <= 2) return
-        unitCards = unitCards.filterIndexed { i, _ -> i != idx }
+        setUnitCards(unitCards.filterIndexed { i, _ -> i != idx })
     }
 
     fun changeCardUnit(idx: Int, key: String) {
         if (unitCards.any { it.unitKey == key }) return
-        unitCards = unitCards.mapIndexed { i, card ->
+        setUnitCards(unitCards.mapIndexed { i, card ->
             if (i == idx) card.copy(unitKey = key, value = "") else card
-        }
+        })
     }
 
     var showUnitPicker by remember { mutableStateOf(false) }
@@ -379,9 +434,9 @@ fun PressureConversionScreen(
                                                 value = fieldValue,
                                                 onValueChange = {
                                                     fieldValue = it
-                                                    unitCards = unitCards.mapIndexed { i, c ->
+                                                    setUnitCards(unitCards.mapIndexed { i, c ->
                                                         if (i == idx) c.copy(value = it) else c
-                                                    }
+                                                    })
                                                 },
                                                 label = null,
                                                 singleLine = true,
@@ -537,7 +592,7 @@ fun PressureConversionScreen(
                                 Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        unitCards = unitCards + UnitCard(u.key, "")
+                                        setUnitCards(unitCards + UnitCard(u.key, ""))
                                         showUnitPicker = false
                                         unitSearch = ""
                                     }

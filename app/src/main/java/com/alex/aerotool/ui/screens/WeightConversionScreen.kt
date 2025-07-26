@@ -73,6 +73,12 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 
+@Serializable
+data class PersistedUnitCard(val unitKey: String, val value: String)
+
+val Context.weightUnitCardsDataStore by preferencesDataStore("conversion_unit_cards")
+val WEIGHT_UNIT_CARDS_KEY = stringPreferencesKey("weight_unit_cards")
+
 fun Double.roundMost(): String {
     val roundable =
         if (this >= 1) (this * 100).roundToInt() / 100.0 else if (this >= 0.01) (this * 10000).roundToInt() / 10000.0 else (this * 1e8).roundToInt() / 1e8
@@ -195,12 +201,6 @@ fun WeightConversionScreen(
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-
-    @Serializable
-    private data class PersistedUnitCard(val unitKey: String, val value: String)
-
-    private val Context.weightUnitCardsDataStore by preferencesDataStore("conversion_unit_cards")
-    private val WEIGHT_UNIT_CARDS_KEY = stringPreferencesKey("weight_unit_cards")
 
     LaunchedEffect(Unit) {
         val prefs = context.weightUnitCardsDataStore.data.first()

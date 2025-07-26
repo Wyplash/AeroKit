@@ -31,6 +31,24 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlin.math.absoluteValue
+import android.content.Context
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+
+@Serializable
+data class PersistedLengthUnitCard(val unitKey: String, val value: String)
+
+val Context.lengthUnitCardsDataStore by preferencesDataStore("length_unit_cards")
+val LENGTH_UNIT_CARDS_KEY = stringPreferencesKey("length_unit_cards")
 
 fun Double.roundMostLen(n: Int = 6): String = "% .${n}f".format(this).trim()
 
@@ -61,6 +79,9 @@ fun LengthConversionScreen(
 
     data class UnitCard(var unitKey: String, var value: String)
 
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     var unitCards by remember {
         mutableStateOf(
             listOf(
@@ -69,6 +90,40 @@ fun LengthConversionScreen(
             )
         )
     }
+    var isRestored by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val prefs = context.lengthUnitCardsDataStore.data.first()
+        val cardsString = prefs[LENGTH_UNIT_CARDS_KEY]
+        if (cardsString != null) {
+            try {
+                val persisted: List<PersistedLengthUnitCard> = Json.decodeFromString(cardsString)
+                unitCards = persisted.map { UnitCard(it.unitKey, it.value) }
+            } catch (_: Exception) {
+            }
+        }
+        isRestored = true
+    }
+
+    fun persistCards(newList: List<UnitCard>) {
+        scope.launch {
+            context.lengthUnitCardsDataStore.edit { prefs ->
+                prefs[LENGTH_UNIT_CARDS_KEY] =
+                    Json.encodeToString(newList.map {
+                        PersistedLengthUnitCard(
+                            it.unitKey,
+                            it.value
+                        )
+                    })
+            }
+        }
+    }
+
+    fun setUnitCards(newList: List<UnitCard>) {
+        unitCards = newList
+        persistCards(newList)
+    }
+
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffsetY by remember { mutableStateOf(0f) }
 
@@ -78,7 +133,7 @@ fun LengthConversionScreen(
         val list = unitCards.toMutableList()
         list.removeAt(from)
         list.add(to, item)
-        unitCards = list
+        setUnitCards(list)
     }
 
     fun recalcAll(fromIdx: Int, text: String) {
@@ -86,11 +141,11 @@ fun LengthConversionScreen(
         val fromDef = unitDefs.first { it.key == fromCard.unitKey }
         val fromValue = text.toDoubleOrNull() ?: return
         val base = fromDef.toBase(fromValue)
-        unitCards = unitCards.mapIndexed { idx, card ->
+        setUnitCards(unitCards.mapIndexed { idx, card ->
             val def = unitDefs.first { it.key == card.unitKey }
             if (idx == fromIdx) card.copy(value = text)
             else card.copy(value = if (text.isBlank()) "" else def.fromBase(base).roundMostLen(6))
-        }
+        })
     }
 
     fun addUnitCard() {
@@ -109,7 +164,7 @@ fun LengthConversionScreen(
                 if (baseCard.value.isBlank()) "" else def.fromBase(base).roundMostLen(6)
             )
         } else UnitCard(newKey, "")
-        unitCards = unitCards + card
+        setUnitCards(unitCards + card)
         val idxToUpdate = unitCards.indexOfFirst { it.value.isNotBlank() }
         if (idxToUpdate != -1) {
             val text = unitCards[idxToUpdate].value
@@ -119,14 +174,14 @@ fun LengthConversionScreen(
 
     fun removeCard(idx: Int) {
         if (unitCards.size <= 2) return
-        unitCards = unitCards.filterIndexed { i, _ -> i != idx }
+        setUnitCards(unitCards.filterIndexed { i, _ -> i != idx })
     }
 
     fun changeCardUnit(idx: Int, key: String) {
         if (unitCards.any { it.unitKey == key }) return
-        unitCards = unitCards.mapIndexed { i, card ->
+        setUnitCards(unitCards.mapIndexed { i, card ->
             if (i == idx) card.copy(unitKey = key, value = "") else card
-        }
+        })
     }
 
     var showUnitPicker by remember { mutableStateOf(false) }
@@ -385,9 +440,9 @@ fun LengthConversionScreen(
                                                 value = fieldValue,
                                                 onValueChange = {
                                                     fieldValue = it
-                                                    unitCards = unitCards.mapIndexed { i, c ->
+                                                    setUnitCards(unitCards.mapIndexed { i, c ->
                                                         if (i == idx) c.copy(value = it) else c
-                                                    }
+                                                    })
                                                 },
                                                 label = null,
                                                 singleLine = true,
@@ -543,7 +598,7 @@ fun LengthConversionScreen(
                                 Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        unitCards = unitCards + UnitCard(u.key, "")
+                                        setUnitCards(unitCards + UnitCard(u.key, ""))
                                         showUnitPicker = false
                                         unitSearch = ""
                                     }

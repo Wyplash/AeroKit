@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Flight
@@ -81,6 +82,7 @@ fun AeroToolApp() {
             val gold = AviationGold
             val unselected = AviationDarkGrey
             Scaffold(
+                modifier = Modifier.navigationBarsPadding(),
                 bottomBar = {
                     Box(Modifier.height(80.dp)) {
                         NavigationBar(modifier = Modifier.fillMaxWidth()) {

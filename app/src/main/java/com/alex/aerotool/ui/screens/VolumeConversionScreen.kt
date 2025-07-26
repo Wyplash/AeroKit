@@ -31,6 +31,24 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlin.math.absoluteValue
+import android.content.Context
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+
+@Serializable
+data class PersistedVolumeUnitCard(val unitKey: String, val value: String)
+
+val Context.volumeUnitCardsDataStore by preferencesDataStore("volume_unit_cards")
+val VOLUME_UNIT_CARDS_KEY = stringPreferencesKey("volume_unit_cards")
 
 fun Double.roundMostVol(n: Int = 4): String = "% .${n}f".format(this).trim()
 
@@ -62,6 +80,9 @@ fun VolumeConversionScreen(
 
     data class UnitCard(var unitKey: String, var value: String)
 
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     var unitCards by remember {
         mutableStateOf(
             listOf(
@@ -70,6 +91,40 @@ fun VolumeConversionScreen(
             )
         )
     }
+    var isRestored by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val prefs = context.volumeUnitCardsDataStore.data.first()
+        val cardsString = prefs[VOLUME_UNIT_CARDS_KEY]
+        if (cardsString != null) {
+            try {
+                val persisted: List<PersistedVolumeUnitCard> = Json.decodeFromString(cardsString)
+                unitCards = persisted.map { UnitCard(it.unitKey, it.value) }
+            } catch (_: Exception) {
+            }
+        }
+        isRestored = true
+    }
+
+    fun persistCards(newList: List<UnitCard>) {
+        scope.launch {
+            context.volumeUnitCardsDataStore.edit { prefs ->
+                prefs[VOLUME_UNIT_CARDS_KEY] =
+                    Json.encodeToString(newList.map {
+                        PersistedVolumeUnitCard(
+                            it.unitKey,
+                            it.value
+                        )
+                    })
+            }
+        }
+    }
+
+    fun setUnitCards(newList: List<UnitCard>) {
+        unitCards = newList
+        persistCards(newList)
+    }
+
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffsetY by remember { mutableStateOf(0f) }
 
@@ -79,7 +134,7 @@ fun VolumeConversionScreen(
         val list = unitCards.toMutableList()
         list.removeAt(from)
         list.add(to, item)
-        unitCards = list
+        setUnitCards(list)
     }
 
     fun recalcAll(fromIdx: Int, text: String) {
@@ -87,11 +142,15 @@ fun VolumeConversionScreen(
         val fromDef = unitDefs.first { it.key == fromCard.unitKey }
         val fromValue = text.toDoubleOrNull() ?: return
         val base = fromDef.toBase(fromValue)
-        unitCards = unitCards.mapIndexed { idx, card ->
-            val def = unitDefs.first { it.key == card.unitKey }
-            if (idx == fromIdx) card.copy(value = text)
-            else card.copy(value = if (text.isBlank()) "" else def.fromBase(base).roundMostVol(4))
-        }
+        setUnitCards(
+            unitCards.mapIndexed { idx, card ->
+                val def = unitDefs.first { it.key == card.unitKey }
+                if (idx == fromIdx) card.copy(value = text)
+                else card.copy(
+                    value = if (text.isBlank()) "" else def.fromBase(base).roundMostVol(4)
+                )
+            }
+        )
     }
 
     fun addUnitCard() {
@@ -110,7 +169,7 @@ fun VolumeConversionScreen(
                 if (baseCard.value.isBlank()) "" else def.fromBase(base).roundMostVol(4)
             )
         } else UnitCard(newKey, "")
-        unitCards = unitCards + card
+        setUnitCards(unitCards + card)
         val idxToUpdate = unitCards.indexOfFirst { it.value.isNotBlank() }
         if (idxToUpdate != -1) {
             val text = unitCards[idxToUpdate].value
@@ -120,14 +179,16 @@ fun VolumeConversionScreen(
 
     fun removeCard(idx: Int) {
         if (unitCards.size <= 2) return
-        unitCards = unitCards.filterIndexed { i, _ -> i != idx }
+        setUnitCards(unitCards.filterIndexed { i, _ -> i != idx })
     }
 
     fun changeCardUnit(idx: Int, key: String) {
         if (unitCards.any { it.unitKey == key }) return
-        unitCards = unitCards.mapIndexed { i, card ->
-            if (i == idx) card.copy(unitKey = key, value = "") else card
-        }
+        setUnitCards(
+            unitCards.mapIndexed { i, card ->
+                if (i == idx) card.copy(unitKey = key, value = "") else card
+            }
+        )
     }
 
     var showUnitPicker by remember { mutableStateOf(false) }
@@ -375,9 +436,11 @@ fun VolumeConversionScreen(
                                                 value = fieldValue,
                                                 onValueChange = {
                                                     fieldValue = it
-                                                    unitCards = unitCards.mapIndexed { i, c ->
-                                                        if (i == idx) c.copy(value = it) else c
-                                                    }
+                                                    setUnitCards(
+                                                        unitCards.mapIndexed { i, c ->
+                                                            if (i == idx) c.copy(value = it) else c
+                                                        }
+                                                    )
                                                 },
                                                 label = null,
                                                 singleLine = true,
@@ -543,7 +606,7 @@ fun VolumeConversionScreen(
                                 Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        unitCards = unitCards + UnitCard(u.key, "")
+                                        setUnitCards(unitCards + UnitCard(u.key, ""))
                                         showUnitPicker = false
                                         unitSearch = ""
                                     }

@@ -31,6 +31,26 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlin.math.absoluteValue
+import android.content.Context
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+
+import kotlin.math.round
+
+@Serializable
+data class PersistedSpeedUnitCard(val unitKey: String, val value: String)
+
+val Context.speedUnitCardsDataStore by preferencesDataStore("speed_unit_cards")
+val SPEED_UNIT_CARDS_KEY = stringPreferencesKey("speed_unit_cards")
 
 fun Double.roundMost(n: Int = 4): String =
     if (n == 0) toInt().toString() else "% .${n}f".format(this).trim()
@@ -62,6 +82,9 @@ fun SpeedConversionScreen(
 
     data class UnitCard(var unitKey: String, var value: String)
 
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     var unitCards by remember {
         mutableStateOf(
             listOf(
@@ -70,6 +93,40 @@ fun SpeedConversionScreen(
             )
         )
     }
+    var isRestored by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val prefs = context.speedUnitCardsDataStore.data.first()
+        val cardsString = prefs[SPEED_UNIT_CARDS_KEY]
+        if (cardsString != null) {
+            try {
+                val persisted: List<PersistedSpeedUnitCard> = Json.decodeFromString(cardsString)
+                unitCards = persisted.map { UnitCard(it.unitKey, it.value) }
+            } catch (_: Exception) {
+            }
+        }
+        isRestored = true
+    }
+
+    fun persistCards(newList: List<UnitCard>) {
+        scope.launch {
+            context.speedUnitCardsDataStore.edit { prefs ->
+                prefs[SPEED_UNIT_CARDS_KEY] =
+                    Json.encodeToString(newList.map {
+                        PersistedSpeedUnitCard(
+                            it.unitKey,
+                            it.value
+                        )
+                    })
+            }
+        }
+    }
+
+    fun setUnitCards(newList: List<UnitCard>) {
+        unitCards = newList
+        persistCards(newList)
+    }
+
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffsetY by remember { mutableStateOf(0f) }
 
@@ -79,7 +136,7 @@ fun SpeedConversionScreen(
         val list = unitCards.toMutableList()
         list.removeAt(from)
         list.add(to, item)
-        unitCards = list
+        setUnitCards(list)
     }
 
     fun recalcAll(fromIdx: Int, text: String) {
@@ -87,11 +144,11 @@ fun SpeedConversionScreen(
         val fromDef = unitDefs.first { it.key == fromCard.unitKey }
         val fromValue = text.toDoubleOrNull() ?: return
         val base = fromDef.toBase(fromValue)
-        unitCards = unitCards.mapIndexed { idx, card ->
+        setUnitCards(unitCards.mapIndexed { idx, card ->
             val def = unitDefs.first { it.key == card.unitKey }
             if (idx == fromIdx) card.copy(value = text)
             else card.copy(value = if (text.isBlank()) "" else def.fromBase(base).roundMost(4))
-        }
+        })
     }
 
     fun addUnitCard() {
@@ -107,7 +164,7 @@ fun SpeedConversionScreen(
             val def = unitDefs.first { it.key == newKey }
             UnitCard(newKey, if (baseCard.value.isBlank()) "" else def.fromBase(base).roundMost(4))
         } else UnitCard(newKey, "")
-        unitCards = unitCards + card
+        setUnitCards(unitCards + card)
         val idxToUpdate = unitCards.indexOfFirst { it.value.isNotBlank() }
         if (idxToUpdate != -1) {
             val text = unitCards[idxToUpdate].value
@@ -117,14 +174,14 @@ fun SpeedConversionScreen(
 
     fun removeCard(idx: Int) {
         if (unitCards.size <= 2) return
-        unitCards = unitCards.filterIndexed { i, _ -> i != idx }
+        setUnitCards(unitCards.filterIndexed { i, _ -> i != idx })
     }
 
     fun changeCardUnit(idx: Int, key: String) {
         if (unitCards.any { it.unitKey == key }) return
-        unitCards = unitCards.mapIndexed { i, card ->
+        setUnitCards(unitCards.mapIndexed { i, card ->
             if (i == idx) card.copy(unitKey = key, value = "") else card
-        }
+        })
     }
 
     var showUnitPicker by remember { mutableStateOf(false) }
@@ -389,9 +446,9 @@ fun SpeedConversionScreen(
                                                 value = fieldValue,
                                                 onValueChange = {
                                                     fieldValue = it
-                                                    unitCards = unitCards.mapIndexed { i, c ->
+                                                    setUnitCards(unitCards.mapIndexed { i, c ->
                                                         if (i == idx) c.copy(value = it) else c
-                                                    }
+                                                    })
                                                 },
                                                 label = null,
                                                 singleLine = true,
@@ -547,7 +604,7 @@ fun SpeedConversionScreen(
                                 Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        unitCards = unitCards + UnitCard(u.key, "")
+                                        setUnitCards(unitCards + UnitCard(u.key, ""))
                                         showUnitPicker = false
                                         unitSearch = ""
                                     }
