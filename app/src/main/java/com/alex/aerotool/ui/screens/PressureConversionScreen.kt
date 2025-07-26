@@ -1,16 +1,35 @@
 package com.alex.aerotool.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Compress
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import kotlin.math.roundToInt
+import kotlin.math.abs
 import com.alex.aerotool.ui.theme.ThemeController
+import androidx.compose.material.icons.filled.Compress
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.ui.input.pointer.consumeAllChanges
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.math.absoluteValue
 
 @Composable
 fun PressureConversionScreen(
@@ -19,318 +38,447 @@ fun PressureConversionScreen(
     showInfo: Boolean = false,
     onInfoDismiss: (() -> Unit)? = null
 ) {
-    var hPa by remember { mutableStateOf("") }
-    var inHg by remember { mutableStateOf("") }
-    var mmHg by remember { mutableStateOf("") }
-    var atm by remember { mutableStateOf("") }
-    var psi by remember { mutableStateOf("") }
-    var lastEdited by remember { mutableStateOf<String?>(null) }
+    data class UnitDef(
+        val key: String,
+        val label: String,
+        val emoji: String,
+        val abbr: String,
+        val toBase: (Double) -> Double,   // convert to hPa
+        val fromBase: (Double) -> Double, // convert from hPa
+    )
 
-    // Core update logic
-    fun updateFromHpa(text: String) {
-        val value = text.toDoubleOrNull()
-        if (value != null) {
-            inHg = (value * 0.0295299830714).round(4)
-            mmHg = (value * 0.750061683).round(2)
-            atm = (value * 0.000986923).round(5)
-            psi = (value * 0.0145038).round(4)
-        } else {
-            inHg = ""; mmHg = ""; atm = ""; psi = ""
+    val unitDefs = listOf(
+        UnitDef("hpa", "Hectopascal", "🧊", "hPa", { it }, { it }),
+        UnitDef("inhg", "Inches Hg", "💡", "inHg", { it * 33.8639 }, { it / 33.8639 }),
+        UnitDef("mmhg", "Mm Hg", "🌧", "mmHg", { it * 1.33322 }, { it / 1.33322 }),
+        UnitDef("atm", "Standard Atm.", "⚖️", "atm", { it * 1013.25 }, { it / 1013.25 }),
+        UnitDef("psi", "PSI", "🚏", "psi", { it * 68.9476 }, { it / 68.9476 }),
+    )
+
+    data class UnitCard(var unitKey: String, var value: String)
+
+    var unitCards by remember {
+        mutableStateOf(
+            listOf(
+                UnitCard("hpa", "1013.25"),
+                UnitCard("inhg", "29.92"),
+            )
+        )
+    }
+    var draggedIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffsetY by remember { mutableStateOf(0f) }
+
+    fun moveItem(from: Int, to: Int) {
+        if (from == to) return
+        val item = unitCards[from]
+        val list = unitCards.toMutableList()
+        list.removeAt(from)
+        list.add(to, item)
+        unitCards = list
+    }
+
+    fun recalcAll(fromIdx: Int, text: String) {
+        val fromCard = unitCards.getOrNull(fromIdx) ?: return
+        val fromDef = unitDefs.first { it.key == fromCard.unitKey }
+        val fromValue = text.toDoubleOrNull() ?: return
+        val base = fromDef.toBase(fromValue)
+        unitCards = unitCards.mapIndexed { idx, card ->
+            val def = unitDefs.first { it.key == card.unitKey }
+            if (idx == fromIdx) card.copy(value = text)
+            else card.copy(value = if (text.isBlank()) "" else def.fromBase(base).toString())
         }
     }
 
-    fun updateFromInHg(text: String) {
-        val value = text.toDoubleOrNull()
-        if (value != null) {
-            hPa = (value * 33.8639).round(2)
-            mmHg = (value * 25.4).round(2)
-            atm = (value * 0.0334211).round(5)
-            psi = (value * 0.491154).round(4)
-        } else {
-            hPa = ""; mmHg = ""; atm = ""; psi = ""
+    fun addUnitCard() {
+        val unused = unitDefs.map { it.key } - unitCards.map { it.unitKey }
+        if (unused.isEmpty()) return
+        val baseIdx = unitCards.indexOfFirst { it.value.isNotBlank() }
+        val newKey = unused.first()
+        val card = if (baseIdx != -1) {
+            val baseCard = unitCards[baseIdx]
+            val baseValue = baseCard.value.toDoubleOrNull() ?: 0.0
+            val baseDef = unitDefs.first { it.key == baseCard.unitKey }
+            val base = baseDef.toBase(baseValue)
+            val def = unitDefs.first { it.key == newKey }
+            UnitCard(newKey, if (baseCard.value.isBlank()) "" else def.fromBase(base).toString())
+        } else UnitCard(newKey, "")
+        unitCards = unitCards + card
+        val idxToUpdate = unitCards.indexOfFirst { it.value.isNotBlank() }
+        if (idxToUpdate != -1) {
+            val text = unitCards[idxToUpdate].value
+            recalcAll(idxToUpdate, text)
         }
     }
 
-    fun updateFromMmHg(text: String) {
-        val value = text.toDoubleOrNull()
-        if (value != null) {
-            hPa = (value * 1.33322).round(2)
-            inHg = (value * 0.0393701).round(4)
-            atm = (value * 0.00131579).round(5)
-            psi = (value * 0.0193368).round(4)
-        } else {
-            hPa = ""; inHg = ""; atm = ""; psi = ""
+    fun removeCard(idx: Int) {
+        if (unitCards.size <= 2) return
+        unitCards = unitCards.filterIndexed { i, _ -> i != idx }
+    }
+
+    fun changeCardUnit(idx: Int, key: String) {
+        if (unitCards.any { it.unitKey == key }) return
+        unitCards = unitCards.mapIndexed { i, card ->
+            if (i == idx) card.copy(unitKey = key, value = "") else card
         }
     }
 
-    fun updateFromAtm(text: String) {
-        val value = text.toDoubleOrNull()
-        if (value != null) {
-            hPa = (value * 1013.25).round(2)
-            inHg = (value * 29.9213).round(4)
-            mmHg = (value * 760.0).round(2)
-            psi = (value * 14.6959).round(4)
-        } else {
-            hPa = ""; inHg = ""; mmHg = ""; psi = ""
-        }
-    }
+    var showUnitPicker by remember { mutableStateOf(false) }
+    var unitSearch by remember { mutableStateOf("") }
+    var activeUnitPickerIdx by remember { mutableStateOf<Int?>(null) }
+    var activeUnitSearch by remember { mutableStateOf("") }
+    val availableUnits = unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } }
 
-    fun updateFromPsi(text: String) {
-        val value = text.toDoubleOrNull()
-        if (value != null) {
-            hPa = (value * 68.9476).round(2)
-            inHg = (value * 2.03602).round(4)
-            mmHg = (value * 51.7149).round(2)
-            atm = (value * 0.06804596).round(5)
-        } else {
-            hPa = ""; inHg = ""; mmHg = ""; atm = ""
-        }
-    }
-
-    fun clearAll() {
-        hPa = ""; inHg = ""; mmHg = ""; atm = ""; psi = ""
-    }
-
-    Column(Modifier.fillMaxSize()) {
-        if (showInfo) {
-            AlertDialog(
-                onDismissRequest = { onInfoDismiss?.invoke() },
-                title = { Text("About Pressure Converter") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Convert between common aviation pressure units.")
-                        Spacer(Modifier.height(7.dp))
-                        Text("Conversion Factors:", style = MaterialTheme.typography.labelLarge)
-                        Text(
-                            "• 1 hPa = 0.02953 inHg = 0.75006 mmHg = 0.000987 atm = 0.01450 psi",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Text("• 1 inHg = 33.8639 hPa", style = MaterialTheme.typography.bodySmall)
-                        Text("• 1 mmHg = 1.33322 hPa", style = MaterialTheme.typography.bodySmall)
-                        Text("• 1 atm = 1013.25 hPa", style = MaterialTheme.typography.bodySmall)
-                        Text("• 1 psi = 68.9476 hPa", style = MaterialTheme.typography.bodySmall)
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "Tip: Enter a value in any field.",
-                            style = MaterialTheme.typography.bodySmall
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            itemsIndexed(unitCards, key = { _, it -> it.unitKey }) { idx, card ->
+                val unit = unitDefs.first { it.key == card.unitKey }
+                val isFirst = idx == 0
+                val trashRevealOffset = 90f
+                var cardOpen by remember(card.unitKey) { mutableStateOf(false) }
+                var swipeOffset by remember(card.unitKey) { mutableStateOf(0f) }
+                var actuallyDeleting by remember { mutableStateOf(false) }
+                val dragProgress = (swipeOffset / trashRevealOffset).coerceIn(0f, 1f)
+                val canDelete = unitCards.size > 2
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 64.dp)
+                ) {
+                    if (canDelete && (cardOpen || swipeOffset > 4f)) {
+                        Box(
+                            Modifier
+                                .fillMaxHeight()
+                                .align(Alignment.CenterStart),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                Modifier
+                                    .size((36 + 12 * dragProgress).dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.error.copy(
+                                            alpha = 0.19f + 0.12f * dragProgress
+                                        ),
+                                        RoundedCornerShape(12.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Remove",
+                                    tint = MaterialTheme.colorScheme.error.copy(
+                                        alpha = 0.7f + 0.3f * dragProgress
+                                    ),
+                                    modifier = Modifier
+                                        .size((22 + 8 * dragProgress).dp)
+                                        .clickable(enabled = !actuallyDeleting) {
+                                            actuallyDeleting = true
+                                            removeCard(idx)
+                                            cardOpen = false
+                                            swipeOffset = 0f
+                                            actuallyDeleting = false
+                                        }
+                                )
+                            }
+                        }
+                    }
+                    Card(
+                        Modifier
+                            .fillMaxWidth()
+                            .offset {
+                                IntOffset(
+                                    (if (cardOpen) trashRevealOffset else swipeOffset).roundToInt(),
+                                    0
+                                )
+                            }
+                            .padding(horizontal = 16.dp, vertical = 5.dp)
+                            .background(
+                                if (cardOpen || swipeOffset > 0f)
+                                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.13f)
+                                else MaterialTheme.colorScheme.surfaceVariant,
+                                RoundedCornerShape(20.dp)
+                            )
+                            .then(
+                                if (canDelete)
+                                    Modifier.pointerInput(card.unitKey, unitCards.size) {
+                                        detectDragGestures(
+                                            onDragStart = {},
+                                            onDrag = { change, dragAmount ->
+                                                change.consumeAllChanges()
+                                                if (cardOpen && dragAmount.x < 0) {
+                                                    val closingOffset =
+                                                        (trashRevealOffset + dragAmount.x).coerceIn(
+                                                            0f,
+                                                            trashRevealOffset
+                                                        )
+                                                    swipeOffset = closingOffset
+                                                } else if (!cardOpen && dragAmount.x > 0 && dragAmount.y.absoluteValue < 30f) {
+                                                    val openOffset =
+                                                        (swipeOffset + dragAmount.x).coerceIn(
+                                                            0f,
+                                                            trashRevealOffset
+                                                        )
+                                                    swipeOffset = openOffset
+                                                }
+                                            },
+                                            onDragEnd = {
+                                                if ((!cardOpen && swipeOffset > trashRevealOffset * 0.5f) || (cardOpen && swipeOffset > trashRevealOffset * 0.5f)) {
+                                                    cardOpen = true
+                                                    swipeOffset = trashRevealOffset
+                                                } else {
+                                                    cardOpen = false
+                                                    swipeOffset = 0f
+                                                }
+                                            },
+                                            onDragCancel = {
+                                                swipeOffset =
+                                                    if (cardOpen) trashRevealOffset else 0f
+                                            }
+                                        )
+                                    }
+                                else Modifier
+                            ),
+                        shape = RoundedCornerShape(20.dp),
+                        border = if (isFirst) androidx.compose.foundation.BorderStroke(
+                            2.dp,
+                            MaterialTheme.colorScheme.outline
+                        ) else null,
+                        elevation = CardDefaults.cardElevation(defaultElevation = if (cardOpen || swipeOffset > 0f) 10.dp else 2.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .heightIn(min = 64.dp)
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Box(
+                                Modifier.padding(start = 5.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Menu,
+                                    contentDescription = "Move",
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                            Column(
+                                Modifier
+                                    .weight(2.2f)
+                                    .padding(start = 12.dp, end = 2.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        unit.emoji,
+                                        fontSize = MaterialTheme.typography.bodyLarge.fontSize,
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    )
+                                    Text(
+                                        unit.label,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        modifier = Modifier.clickable {
+                                            activeUnitPickerIdx = idx; activeUnitSearch = ""
+                                        }
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(18.dp)
+                                            .clickable {
+                                                activeUnitPickerIdx = idx; activeUnitSearch = ""
+                                            }
+                                    )
+                                }
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                var fieldValue by remember { mutableStateOf(card.value) }
+                                Box(
+                                    Modifier
+                                        .fillMaxWidth(0.46f)
+                                        .height(56.dp)
+                                ) {
+                                    Row(
+                                        Modifier.matchParentSize(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        OutlinedTextField(
+                                            value = fieldValue,
+                                            onValueChange = {
+                                                fieldValue = it; recalcAll(idx, it)
+                                            },
+                                            label = null,
+                                            singleLine = true,
+                                            maxLines = 1,
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight(),
+                                            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                                textAlign = TextAlign.End,
+                                                fontWeight = FontWeight.Medium
+                                            ),
+                                            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+                                            keyboardActions = KeyboardActions(onDone = {
+                                                recalcAll(idx, fieldValue)
+                                            })
+                                        )
+                                        Text(
+                                            unit.abbr,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier
+                                                .padding(start = 8.dp, end = 6.dp)
+                                                .widthIn(min = 32.dp)
+                                                .align(Alignment.CenterVertically),
+                                            textAlign = TextAlign.End
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (activeUnitPickerIdx == idx) {
+                        val availableUnits =
+                            unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } || def.key == card.unitKey }
+                        AlertDialog(
+                            onDismissRequest = { activeUnitPickerIdx = null },
+                            title = { Text("Units") },
+                            text = {
+                                Column {
+                                    OutlinedTextField(
+                                        value = activeUnitSearch,
+                                        onValueChange = { activeUnitSearch = it },
+                                        label = { Text("Search units") },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Spacer(Modifier.height(10.dp))
+                                    val filtered = availableUnits.filter {
+                                        it.label.contains(
+                                            activeUnitSearch,
+                                            ignoreCase = true
+                                        )
+                                    }
+                                    LazyColumn(Modifier.heightIn(max = 350.dp)) {
+                                        itemsIndexed(filtered) { _, u ->
+                                            Row(
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        changeCardUnit(idx, u.key)
+                                                        activeUnitPickerIdx = null
+                                                        activeUnitSearch = ""
+                                                    }
+                                                    .padding(vertical = 10.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    u.emoji,
+                                                    fontSize = MaterialTheme.typography.headlineSmall.fontSize,
+                                                    modifier = Modifier.padding(end = 12.dp)
+                                                )
+                                                Column {
+                                                    Text(
+                                                        u.label,
+                                                        style = MaterialTheme.typography.bodyLarge
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            confirmButton = {},
+                            dismissButton = {
+                                TextButton(onClick = { activeUnitPickerIdx = null }) { Text("Cancel") }
+                            }
                         )
                     }
-                },
-                confirmButton = {
-                    TextButton(onClick = { onInfoDismiss?.invoke() }) { Text("OK") }
                 }
-            )
-        }
-        Spacer(Modifier.height(10.dp))
-        Icon(
-            Icons.Default.Compress,
-            contentDescription = null,
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .size(32.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Spacer(Modifier.height(3.dp))
-        Text(
-            "Enter a pressure value in any unit",
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.height(10.dp))
-        Card(
-            shape = RoundedCornerShape(18.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-            modifier = Modifier
-                .padding(18.dp)
-                .fillMaxWidth()
-        ) {
-            Column(
-                Modifier
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(9.dp)
-            ) {
-                val isBlank =
-                    hPa.isBlank() && inHg.isBlank() && mmHg.isBlank() && atm.isBlank() && psi.isBlank()
-
-                // hPa
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "hpa") Color(
-                            0xFF223372
-                        ) else Color(0xFF117449)
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
+            }
+            item {
+                Row(
+                    Modifier
+                        .padding(start = 24.dp, top = 4.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
-                        value = hPa,
-                        onValueChange = {
-                            hPa = it
-                            lastEdited = "hpa"
-                            updateFromHpa(it)
-                        },
-                        label = { Text("Hectopascal (hPa)") },
-                        placeholder = { Text("1013.25") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        enabled = lastEdited == "hpa" || hPa.isEmpty(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            disabledTextColor = Color.White
-                        )
+                    Text(
+                        "↳",
+                        fontSize = MaterialTheme.typography.headlineMedium.fontSize,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(end = 3.dp)
                     )
+                    Text("Drag to reorder", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                // inHg
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "inhg") Color(
-                            0xFF223372
-                        ) else Color(0xFF117449)
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = inHg,
-                        onValueChange = {
-                            inHg = it
-                            lastEdited = "inhg"
-                            updateFromInHg(it)
-                        },
-                        label = { Text("Inches of Mercury (inHg)") },
-                        placeholder = { Text("29.92") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        enabled = lastEdited == "inhg" || inHg.isEmpty(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            disabledTextColor = Color.White
-                        )
-                    )
-                }
-                // mmHg
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "mmhg") Color(
-                            0xFF223372
-                        ) else Color(0xFF117449)
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = mmHg,
-                        onValueChange = {
-                            mmHg = it
-                            lastEdited = "mmhg"
-                            updateFromMmHg(it)
-                        },
-                        label = { Text("Millimeters of Mercury (mmHg)") },
-                        placeholder = { Text("760") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        enabled = lastEdited == "mmhg" || mmHg.isEmpty(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            disabledTextColor = Color.White
-                        )
-                    )
-                }
-                // atm
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "atm") Color(
-                            0xFF223372
-                        ) else Color(0xFF117449)
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = atm,
-                        onValueChange = {
-                            atm = it
-                            lastEdited = "atm"
-                            updateFromAtm(it)
-                        },
-                        label = { Text("Standard Atmosphere (atm)") },
-                        placeholder = { Text("1") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        enabled = lastEdited == "atm" || atm.isEmpty(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            disabledTextColor = Color.White
-                        )
-                    )
-                }
-                // psi
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "psi") Color(
-                            0xFF223372
-                        ) else Color(0xFF117449)
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = psi,
-                        onValueChange = {
-                            psi = it
-                            lastEdited = "psi"
-                            updateFromPsi(it)
-                        },
-                        label = { Text("Pound per Square Inch (psi)") },
-                        placeholder = { Text("14.7") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        enabled = lastEdited == "psi" || psi.isEmpty(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            disabledTextColor = Color.White
-                        )
-                    )
-                }
-                Spacer(Modifier.height(5.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    FilledTonalButton(
-                        onClick = { clearAll(); lastEdited = null },
-                        modifier = Modifier.height(38.dp)
-                    ) {
-                        Text("Clear", style = MaterialTheme.typography.bodySmall)
+            }
+            if (availableUnits.isNotEmpty()) {
+                item {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                        Button(
+                            onClick = { showUnitPicker = true },
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier
+                                .padding(vertical = 3.dp)
+                                .size(64.dp)
+                        ) {
+                            Text("+", style = MaterialTheme.typography.headlineMedium)
+                        }
                     }
                 }
             }
         }
     }
+    if (showUnitPicker) {
+        val availableUnits = unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } }
+        AlertDialog(
+            onDismissRequest = { showUnitPicker = false },
+            title = { Text("Units") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = unitSearch,
+                        onValueChange = { unitSearch = it },
+                        label = { Text("Search units") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    val filtered =
+                        availableUnits.filter { it.label.contains(unitSearch, ignoreCase = true) }
+                    LazyColumn(Modifier.heightIn(max = 350.dp)) {
+                        itemsIndexed(filtered) { i, u ->
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        unitCards = unitCards + UnitCard(u.key, "")
+                                        showUnitPicker = false
+                                        unitSearch = ""
+                                    }
+                                    .padding(vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    u.emoji,
+                                    fontSize = MaterialTheme.typography.headlineSmall.fontSize,
+                                    modifier = Modifier.padding(end = 12.dp)
+                                )
+                                Column {
+                                    Text(u.label, style = MaterialTheme.typography.bodyLarge)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showUnitPicker = false }) { Text("Cancel") }
+            }
+        )
+    }
 }
-
-private fun Double.round(n: Int): String = "%.${n}f".format(this)

@@ -1,16 +1,37 @@
 package com.alex.aerotool.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import kotlin.math.roundToInt
+import kotlin.math.abs
 import com.alex.aerotool.ui.theme.ThemeController
+import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.ui.input.pointer.consumeAllChanges
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.math.absoluteValue
+
+fun Double.roundMostLen(n: Int = 6): String = "% .${n}f".format(this).trim()
 
 @Composable
 fun LengthConversionScreen(
@@ -19,380 +40,451 @@ fun LengthConversionScreen(
     showInfo: Boolean = false,
     onInfoDismiss: (() -> Unit)? = null
 ) {
-    var meters by remember { mutableStateOf("") }
-    var feet by remember { mutableStateOf("") }
-    var inches by remember { mutableStateOf("") }
-    var kilometers by remember { mutableStateOf("") }
-    var miles by remember { mutableStateOf("") }
-    var nauticalMiles by remember { mutableStateOf("") }
-    var lastEdited by remember { mutableStateOf<String?>(null) }
+    data class UnitDef(
+        val key: String,
+        val label: String,
+        val emoji: String,
+        val abbr: String,
+        val toBase: (Double) -> Double,   // convert to meters
+        val fromBase: (Double) -> Double, // convert from meters
+    )
 
-    // Conversion functions
-    fun updateFromMeters(text: String) {
-        val value = text.toDoubleOrNull()
-        if (value != null) {
-            feet = (value * 3.28084).round(4)
-            inches = (value * 39.3701).round(2)
-            kilometers = (value / 1000).round(6)
-            miles = (value * 0.000621371).round(6)
-            nauticalMiles = (value * 0.000539957).round(6)
-        } else {
-            feet = ""; inches = ""; kilometers = ""; miles = ""; nauticalMiles = ""
+    val unitDefs = listOf(
+        UnitDef("m", "Meters", "📏", "m", { it }, { it }),
+        UnitDef("ft", "Feet", "📏", "ft", { it * 0.3048 }, { it / 0.3048 }),
+        UnitDef("in", "Inches", "📏", "in", { it * 0.0254 }, { it / 0.0254 }),
+        UnitDef("km", "Kilometers", "📏", "km", { it * 1000 }, { it / 1000 }),
+        UnitDef("mi", "Miles", "📏", "mi", { it * 1609.34 }, { it / 1609.34 }),
+        UnitDef("nmi", "Nautical Mile", "🚢", "nmi", { it * 1852 }, { it / 1852 })
+    )
+
+    data class UnitCard(var unitKey: String, var value: String)
+
+    var unitCards by remember {
+        mutableStateOf(
+            listOf(
+                UnitCard("m", "1000"),
+                UnitCard("ft", "3280.84")
+            )
+        )
+    }
+    var draggedIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffsetY by remember { mutableStateOf(0f) }
+
+    fun moveItem(from: Int, to: Int) {
+        if (from == to) return
+        val item = unitCards[from]
+        val list = unitCards.toMutableList()
+        list.removeAt(from)
+        list.add(to, item)
+        unitCards = list
+    }
+
+    fun recalcAll(fromIdx: Int, text: String) {
+        val fromCard = unitCards.getOrNull(fromIdx) ?: return
+        val fromDef = unitDefs.first { it.key == fromCard.unitKey }
+        val fromValue = text.toDoubleOrNull() ?: return
+        val base = fromDef.toBase(fromValue)
+        unitCards = unitCards.mapIndexed { idx, card ->
+            val def = unitDefs.first { it.key == card.unitKey }
+            if (idx == fromIdx) card.copy(value = text)
+            else card.copy(value = if (text.isBlank()) "" else def.fromBase(base).roundMostLen(6))
         }
     }
 
-    fun updateFromFeet(text: String) {
-        val value = text.toDoubleOrNull()
-        if (value != null) {
-            meters = (value / 3.28084).round(4)
-            inches = (value * 12).round(2)
-            kilometers = (value / 3280.84).round(6)
-            miles = (value / 5280).round(6)
-            nauticalMiles = (value / 6076.12).round(6)
-        } else {
-            meters = ""; inches = ""; kilometers = ""; miles = ""; nauticalMiles = ""
+    fun addUnitCard() {
+        val unused = unitDefs.map { it.key } - unitCards.map { it.unitKey }
+        if (unused.isEmpty()) return
+        val baseIdx = unitCards.indexOfFirst { it.value.isNotBlank() }
+        val newKey = unused.first()
+        val card = if (baseIdx != -1) {
+            val baseCard = unitCards[baseIdx]
+            val baseValue = baseCard.value.toDoubleOrNull() ?: 0.0
+            val baseDef = unitDefs.first { it.key == baseCard.unitKey }
+            val base = baseDef.toBase(baseValue)
+            val def = unitDefs.first { it.key == newKey }
+            UnitCard(
+                newKey,
+                if (baseCard.value.isBlank()) "" else def.fromBase(base).roundMostLen(6)
+            )
+        } else UnitCard(newKey, "")
+        unitCards = unitCards + card
+        val idxToUpdate = unitCards.indexOfFirst { it.value.isNotBlank() }
+        if (idxToUpdate != -1) {
+            val text = unitCards[idxToUpdate].value
+            recalcAll(idxToUpdate, text)
         }
     }
 
-    fun updateFromInches(text: String) {
-        val value = text.toDoubleOrNull()
-        if (value != null) {
-            meters = (value / 39.3701).round(4)
-            feet = (value / 12).round(4)
-            kilometers = (value / 39370.1).round(6)
-            miles = (value / 63360).round(6)
-            nauticalMiles = (value / 72913.4).round(6)
-        } else {
-            meters = ""; feet = ""; kilometers = ""; miles = ""; nauticalMiles = ""
+    fun removeCard(idx: Int) {
+        if (unitCards.size <= 2) return
+        unitCards = unitCards.filterIndexed { i, _ -> i != idx }
+    }
+
+    fun changeCardUnit(idx: Int, key: String) {
+        if (unitCards.any { it.unitKey == key }) return
+        unitCards = unitCards.mapIndexed { i, card ->
+            if (i == idx) card.copy(unitKey = key, value = "") else card
         }
     }
 
-    fun updateFromKilometers(text: String) {
-        val value = text.toDoubleOrNull()
-        if (value != null) {
-            meters = (value * 1000).round(2)
-            feet = (value * 3280.84).round(2)
-            inches = (value * 39370.1).round(2)
-            miles = (value * 0.621371).round(4)
-            nauticalMiles = (value * 0.539957).round(4)
-        } else {
-            meters = ""; feet = ""; inches = ""; miles = ""; nauticalMiles = ""
-        }
-    }
+    var showUnitPicker by remember { mutableStateOf(false) }
+    var unitSearch by remember { mutableStateOf("") }
+    var activeUnitPickerIdx by remember { mutableStateOf<Int?>(null) }
+    var activeUnitSearch by remember { mutableStateOf("") }
+    val availableUnits = unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } }
 
-    fun updateFromMiles(text: String) {
-        val value = text.toDoubleOrNull()
-        if (value != null) {
-            meters = (value * 1609.34).round(2)
-            feet = (value * 5280).round(2)
-            inches = (value * 63360).round(2)
-            kilometers = (value * 1.60934).round(4)
-            nauticalMiles = (value * 0.868976).round(4)
-        } else {
-            meters = ""; feet = ""; inches = ""; kilometers = ""; nauticalMiles = ""
-        }
-    }
-
-    fun updateFromNauticalMiles(text: String) {
-        val value = text.toDoubleOrNull()
-        if (value != null) {
-            meters = (value * 1852).round(2)
-            feet = (value * 6076.12).round(2)
-            inches = (value * 72913.4).round(2)
-            kilometers = (value * 1.852).round(4)
-            miles = (value * 1.15078).round(4)
-        } else {
-            meters = ""; feet = ""; inches = ""; kilometers = ""; miles = ""
-        }
-    }
-
-    fun clearAll() {
-        meters = ""; feet = ""; inches = ""; kilometers = ""; miles = ""; nauticalMiles = ""
-    }
-
-    Column(Modifier.fillMaxSize()) {
-        if (showInfo) {
-            AlertDialog(
-                onDismissRequest = { onInfoDismiss?.invoke() },
-                title = { Text("About Length Converter") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Enter a value in any length unit. The other fields update instantly.")
-                        Spacer(Modifier.height(7.dp))
-                        Text("Supported Units:", style = MaterialTheme.typography.labelLarge)
-                        Text(
-                            "• Meters (m) - SI base unit",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Text(
-                            "• Feet (ft) - Imperial unit",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Text(
-                            "• Inches (in) - Imperial unit",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Text(
-                            "• Kilometers (km) - Metric",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Text("• Miles (mi) - Imperial", style = MaterialTheme.typography.bodySmall)
-                        Text(
-                            "• Nautical Miles (nmi) - Aviation/Marine",
-                            style = MaterialTheme.typography.bodySmall
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            itemsIndexed(unitCards, key = { _, it -> it.unitKey }) { idx, card ->
+                val unit = unitDefs.first { it.key == card.unitKey }
+                val isFirst = idx == 0
+                val trashRevealOffset = 90f
+                var cardOpen by remember(card.unitKey) { mutableStateOf(false) }
+                var swipeOffset by remember(card.unitKey) { mutableStateOf(0f) }
+                var actuallyDeleting by remember { mutableStateOf(false) }
+                val dragProgress = (swipeOffset / trashRevealOffset).coerceIn(0f, 1f)
+                val canDelete = unitCards.size > 2
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 64.dp)
+                ) {
+                    if (canDelete && (cardOpen || swipeOffset > 4f)) {
+                        Box(
+                            Modifier
+                                .fillMaxHeight()
+                                .align(Alignment.CenterStart),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                Modifier
+                                    .size((36 + 12 * dragProgress).dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.error.copy(
+                                            alpha = 0.19f + 0.12f * dragProgress
+                                        ),
+                                        RoundedCornerShape(12.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Remove",
+                                    tint = MaterialTheme.colorScheme.error.copy(
+                                        alpha = 0.7f + 0.3f * dragProgress
+                                    ),
+                                    modifier = Modifier
+                                        .size((22 + 8 * dragProgress).dp)
+                                        .clickable(enabled = !actuallyDeleting) {
+                                            actuallyDeleting = true
+                                            removeCard(idx)
+                                            cardOpen = false
+                                            swipeOffset = 0f
+                                            actuallyDeleting = false
+                                        }
+                                )
+                            }
+                        }
+                    }
+                    Card(
+                        Modifier
+                            .fillMaxWidth()
+                            .offset {
+                                IntOffset(
+                                    (if (cardOpen) trashRevealOffset else swipeOffset).roundToInt(),
+                                    0
+                                )
+                            }
+                            .padding(horizontal = 16.dp, vertical = 5.dp)
+                            .background(
+                                if (cardOpen || swipeOffset > 0f)
+                                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.13f)
+                                else MaterialTheme.colorScheme.surfaceVariant,
+                                RoundedCornerShape(20.dp)
+                            )
+                            .then(
+                                if (canDelete)
+                                    Modifier.pointerInput(card.unitKey, unitCards.size) {
+                                        detectDragGestures(
+                                            onDragStart = {},
+                                            onDrag = { change, dragAmount ->
+                                                change.consumeAllChanges()
+                                                if (cardOpen && dragAmount.x < 0) {
+                                                    val closingOffset =
+                                                        (trashRevealOffset + dragAmount.x).coerceIn(
+                                                            0f,
+                                                            trashRevealOffset
+                                                        )
+                                                    swipeOffset = closingOffset
+                                                } else if (!cardOpen && dragAmount.x > 0 && dragAmount.y.absoluteValue < 30f) {
+                                                    val openOffset =
+                                                        (swipeOffset + dragAmount.x).coerceIn(
+                                                            0f,
+                                                            trashRevealOffset
+                                                        )
+                                                    swipeOffset = openOffset
+                                                }
+                                            },
+                                            onDragEnd = {
+                                                if ((!cardOpen && swipeOffset > trashRevealOffset * 0.5f) || (cardOpen && swipeOffset > trashRevealOffset * 0.5f)) {
+                                                    cardOpen = true
+                                                    swipeOffset = trashRevealOffset
+                                                } else {
+                                                    cardOpen = false
+                                                    swipeOffset = 0f
+                                                }
+                                            },
+                                            onDragCancel = {
+                                                swipeOffset =
+                                                    if (cardOpen) trashRevealOffset else 0f
+                                            }
+                                        )
+                                    }
+                                else Modifier
+                            ),
+                        shape = RoundedCornerShape(20.dp),
+                        border = if (isFirst) androidx.compose.foundation.BorderStroke(
+                            2.dp,
+                            MaterialTheme.colorScheme.outline
+                        ) else null,
+                        elevation = CardDefaults.cardElevation(defaultElevation = if (cardOpen || swipeOffset > 0f) 10.dp else 2.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .heightIn(min = 64.dp)
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Box(
+                                Modifier.padding(start = 5.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Menu,
+                                    contentDescription = "Move",
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                            Column(
+                                Modifier
+                                    .weight(2.2f)
+                                    .padding(start = 12.dp, end = 2.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        unit.emoji,
+                                        fontSize = MaterialTheme.typography.bodyLarge.fontSize,
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    )
+                                    Text(
+                                        unit.label,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        modifier = Modifier.clickable {
+                                            activeUnitPickerIdx = idx; activeUnitSearch = ""
+                                        }
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(18.dp)
+                                            .clickable {
+                                                activeUnitPickerIdx = idx; activeUnitSearch = ""
+                                            }
+                                    )
+                                }
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                var fieldValue by remember { mutableStateOf(card.value) }
+                                Box(
+                                    Modifier
+                                        .fillMaxWidth(0.46f)
+                                        .height(56.dp)
+                                ) {
+                                    Row(
+                                        Modifier.matchParentSize(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        OutlinedTextField(
+                                            value = fieldValue,
+                                            onValueChange = {
+                                                fieldValue = it; recalcAll(idx, it)
+                                            },
+                                            label = null,
+                                            singleLine = true,
+                                            maxLines = 1,
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight(),
+                                            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                                textAlign = TextAlign.End,
+                                                fontWeight = FontWeight.Medium
+                                            ),
+                                            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+                                            keyboardActions = KeyboardActions(onDone = {
+                                                recalcAll(idx, fieldValue)
+                                            })
+                                        )
+                                        Text(
+                                            unit.abbr,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier
+                                                .padding(start = 8.dp, end = 6.dp)
+                                                .widthIn(min = 32.dp)
+                                                .align(Alignment.CenterVertically),
+                                            textAlign = TextAlign.End
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (activeUnitPickerIdx == idx) {
+                        val availableUnits =
+                            unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } || def.key == card.unitKey }
+                        AlertDialog(
+                            onDismissRequest = { activeUnitPickerIdx = null },
+                            title = { Text("Units") },
+                            text = {
+                                Column {
+                                    OutlinedTextField(
+                                        value = activeUnitSearch,
+                                        onValueChange = { activeUnitSearch = it },
+                                        label = { Text("Search units") },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Spacer(Modifier.height(10.dp))
+                                    val filtered = availableUnits.filter {
+                                        it.label.contains(
+                                            activeUnitSearch,
+                                            ignoreCase = true
+                                        )
+                                    }
+                                    LazyColumn(Modifier.heightIn(max = 350.dp)) {
+                                        itemsIndexed(filtered) { _, u ->
+                                            Row(
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        changeCardUnit(idx, u.key)
+                                                        activeUnitPickerIdx = null
+                                                        activeUnitSearch = ""
+                                                    }
+                                                    .padding(vertical = 10.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    u.emoji,
+                                                    fontSize = MaterialTheme.typography.headlineSmall.fontSize,
+                                                    modifier = Modifier.padding(end = 12.dp)
+                                                )
+                                                Column {
+                                                    Text(
+                                                        u.label,
+                                                        style = MaterialTheme.typography.bodyLarge
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            confirmButton = {},
+                            dismissButton = {
+                                TextButton(onClick = { activeUnitPickerIdx = null }) { Text("Cancel") }
+                            }
                         )
                     }
-                },
-                confirmButton = {
-                    TextButton(onClick = { onInfoDismiss?.invoke() }) { Text("OK") }
                 }
-            )
-        }
-
-        Spacer(Modifier.height(10.dp))
-        Icon(
-            Icons.Default.Straighten,
-            contentDescription = null,
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .size(32.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Spacer(Modifier.height(3.dp))
-        Text(
-            "Enter a value in any length unit",
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.height(10.dp))
-
-        Card(
-            shape = RoundedCornerShape(18.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-            modifier = Modifier
-                .padding(18.dp)
-                .fillMaxWidth()
-        ) {
-            Column(
-                Modifier
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(9.dp)
-            ) {
-                val isBlank =
-                    meters.isBlank() && feet.isBlank() && inches.isBlank() && kilometers.isBlank() && miles.isBlank() && nauticalMiles.isBlank()
-
-                // Meters
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "m") Color(
-                            0xFF223372
-                        ) else Color(0xFF117449)
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
+            }
+            item {
+                Row(
+                    Modifier
+                        .padding(start = 24.dp, top = 4.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
-                        value = meters,
-                        onValueChange = {
-                            meters = it
-                            lastEdited = "m"
-                            updateFromMeters(it)
-                        },
-                        label = { Text("Meters (m)") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        enabled = lastEdited == "m" || meters.isEmpty(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            disabledTextColor = Color.White
-                        )
+                    Text(
+                        "↳",
+                        fontSize = MaterialTheme.typography.headlineMedium.fontSize,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(end = 3.dp)
                     )
+                    Text("Drag to reorder", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-
-                // Feet
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "ft") Color(
-                            0xFF223372
-                        ) else Color(0xFF117449)
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = feet,
-                        onValueChange = {
-                            feet = it
-                            lastEdited = "ft"
-                            updateFromFeet(it)
-                        },
-                        label = { Text("Feet (ft)") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        enabled = lastEdited == "ft" || feet.isEmpty(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            disabledTextColor = Color.White
-                        )
-                    )
-                }
-
-                // Inches
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "in") Color(
-                            0xFF223372
-                        ) else Color(0xFF117449)
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = inches,
-                        onValueChange = {
-                            inches = it
-                            lastEdited = "in"
-                            updateFromInches(it)
-                        },
-                        label = { Text("Inches (in)") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        enabled = lastEdited == "in" || inches.isEmpty(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            disabledTextColor = Color.White
-                        )
-                    )
-                }
-
-                // Kilometers
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "km") Color(
-                            0xFF223372
-                        ) else Color(0xFF117449)
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = kilometers,
-                        onValueChange = {
-                            kilometers = it
-                            lastEdited = "km"
-                            updateFromKilometers(it)
-                        },
-                        label = { Text("Kilometers (km)") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        enabled = lastEdited == "km" || kilometers.isEmpty(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            disabledTextColor = Color.White
-                        )
-                    )
-                }
-
-                // Miles
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "mi") Color(
-                            0xFF223372
-                        ) else Color(0xFF117449)
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = miles,
-                        onValueChange = {
-                            miles = it
-                            lastEdited = "mi"
-                            updateFromMiles(it)
-                        },
-                        label = { Text("Miles (mi)") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        enabled = lastEdited == "mi" || miles.isEmpty(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            disabledTextColor = Color.White
-                        )
-                    )
-                }
-
-                // Nautical Miles
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "nmi") Color(
-                            0xFF223372
-                        ) else Color(0xFF117449)
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = nauticalMiles,
-                        onValueChange = {
-                            nauticalMiles = it
-                            lastEdited = "nmi"
-                            updateFromNauticalMiles(it)
-                        },
-                        label = { Text("Nautical Miles (nmi)") },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        enabled = lastEdited == "nmi" || nauticalMiles.isEmpty(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            disabledTextColor = Color.White
-                        )
-                    )
-                }
-
-                Spacer(Modifier.height(5.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    FilledTonalButton(
-                        onClick = { clearAll(); lastEdited = null },
-                        modifier = Modifier.height(38.dp)
-                    ) {
-                        Text("Clear", style = MaterialTheme.typography.bodySmall)
+            }
+            if (availableUnits.isNotEmpty()) {
+                item {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                        Button(
+                            onClick = { showUnitPicker = true },
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier
+                                .padding(vertical = 3.dp)
+                                .size(64.dp)
+                        ) {
+                            Text("+", style = MaterialTheme.typography.headlineMedium)
+                        }
                     }
                 }
             }
         }
     }
+    if (showUnitPicker) {
+        val availableUnits = unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } }
+        AlertDialog(
+            onDismissRequest = { showUnitPicker = false },
+            title = { Text("Units") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = unitSearch,
+                        onValueChange = { unitSearch = it },
+                        label = { Text("Search units") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    val filtered =
+                        availableUnits.filter { it.label.contains(unitSearch, ignoreCase = true) }
+                    LazyColumn(Modifier.heightIn(max = 350.dp)) {
+                        itemsIndexed(filtered) { i, u ->
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        unitCards = unitCards + UnitCard(u.key, "")
+                                        showUnitPicker = false
+                                        unitSearch = ""
+                                    }
+                                    .padding(vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    u.emoji,
+                                    fontSize = MaterialTheme.typography.headlineSmall.fontSize,
+                                    modifier = Modifier.padding(end = 12.dp)
+                                )
+                                Column {
+                                    Text(u.label, style = MaterialTheme.typography.bodyLarge)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showUnitPicker = false }) { Text("Cancel") }
+            }
+        )
+    }
 }
-
-private fun Double.round(n: Int): String = "%.${n}f".format(this)
