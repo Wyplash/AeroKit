@@ -50,7 +50,7 @@ data class PersistedLengthUnitCard(val unitKey: String, val value: String)
 val Context.lengthUnitCardsDataStore by preferencesDataStore("length_unit_cards")
 val LENGTH_UNIT_CARDS_KEY = stringPreferencesKey("length_unit_cards")
 
-fun Double.roundMostLen(n: Int = 6): String = "% .${n}f".format(this).trim()
+fun Double.roundMostLen(n: Int = 6): String = "%.${n}f".format(this)
 
 @Composable
 fun LengthConversionScreen(
@@ -70,11 +70,11 @@ fun LengthConversionScreen(
 
     val unitDefs = listOf(
         UnitDef("m", "Meters", "📏", "m", { it }, { it }),
-        UnitDef("ft", "Feet", "📏", "ft", { it * 0.3048 }, { it / 0.3048 }),
-        UnitDef("in", "Inches", "📏", "in", { it * 0.0254 }, { it / 0.0254 }),
-        UnitDef("km", "Kilometers", "📏", "km", { it * 1000 }, { it / 1000 }),
-        UnitDef("mi", "Miles", "📏", "mi", { it * 1609.34 }, { it / 1609.34 }),
-        UnitDef("nmi", "Nautical Mile", "🚢", "nmi", { it * 1852 }, { it / 1852 })
+        UnitDef("ft", "Feet", "🦶", "ft", { it * 0.3048 }, { it / 0.3048 }),
+        UnitDef("in", "Inches", "📐", "in", { it * 0.0254 }, { it / 0.0254 }),
+        UnitDef("km", "Kilometers", "🗺️", "km", { it * 1000 }, { it / 1000 }),
+        UnitDef("mi", "Miles", "🛣️", "mi", { it * 1609.344 }, { it / 1609.344 }),
+        UnitDef("nmi", "Nautical Mile", "⛵", "nmi", { it * 1852 }, { it / 1852 })
     )
 
     data class UnitCard(var unitKey: String, var value: String)
@@ -189,6 +189,35 @@ fun LengthConversionScreen(
     var activeUnitPickerIdx by remember { mutableStateOf<Int?>(null) }
     var activeUnitSearch by remember { mutableStateOf("") }
     val availableUnits = unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } }
+
+    // Info dialog for length conversion help
+    if (showInfo) {
+        AlertDialog(
+            onDismissRequest = { onInfoDismiss?.invoke() },
+            title = { Text("Length Conversion Tool") },
+            text = {
+                Text(
+                    "Convert between length and distance units commonly used in aviation and navigation.\n\n" +
+                            "• Enter a value in any length unit field\n" +
+                            "• All other units update automatically\n" +
+                            "• Drag cards using the menu icon to reorder\n" +
+                            "• Swipe cards left to delete (minimum 2 required)\n" +
+                            "• Click unit names to change the unit type\n" +
+                            "• Add more units using the + button\n\n" +
+                            "Aviation Distance References:\n" +
+                            "• Nautical Miles (nmi) - Standard aviation distance\n" +
+                            "• Feet (ft) - Altitude and visibility measurements\n" +
+                            "• Meters (m) - International standard unit\n" +
+                            "• Statute Miles (mi) - Ground distance reference"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onInfoDismiss?.invoke() }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
 
     // Effect: When number of cards grows, auto-convert using first non-blank
     LaunchedEffect(unitCards.size) {

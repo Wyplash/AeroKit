@@ -80,9 +80,11 @@ val Context.weightUnitCardsDataStore by preferencesDataStore("conversion_unit_ca
 val WEIGHT_UNIT_CARDS_KEY = stringPreferencesKey("weight_unit_cards")
 
 fun Double.roundMost(): String {
-    val roundable =
-        if (this >= 1) (this * 100).roundToInt() / 100.0 else if (this >= 0.01) (this * 10000).roundToInt() / 10000.0 else (this * 1e8).roundToInt() / 1e8
-    return roundable.toString()
+    return when {
+        this >= 1 -> "%.4f".format(this)
+        this >= 0.01 -> "%.6f".format(this)
+        else -> "%.8f".format(this)
+    }
 }
 
 @Composable
@@ -107,7 +109,7 @@ fun WeightConversionScreen(
         UnitDef(
             "kg",
             "Kilogram",
-            "📦",
+            "⚖️",
             "kg",
             { it },
             { it },
@@ -120,11 +122,11 @@ fun WeightConversionScreen(
             { it / 1000 },
             { it * 1000 },
             { v -> "${(v / 453.592).roundMost()} lbs" }),
-        UnitDef("lb", "Pound", "🥖", "lbs", { it * 0.453592 }, { it / 0.453592 }, { v -> "1 lbs" }),
+        UnitDef("lb", "Pound", "🏋️", "lbs", { it * 0.453592 }, { it / 0.453592 }, { v -> "1 lbs" }),
         UnitDef(
             "oz",
             "Ounce",
-            "🎉",
+            "🔧",
             "oz",
             { it * 0.0283495 },
             { it / 0.0283495 },
@@ -759,5 +761,41 @@ fun WeightConversionScreen(
                 TextButton(onClick = { showUnitPicker = false }) { Text("Cancel") }
             }
         )
+    }
+    // Info dialog for weight conversion help
+    if (showInfo) {
+        AlertDialog(
+            onDismissRequest = { onInfoDismiss?.invoke() },
+            title = { Text("Weight Conversion Tool") },
+            text = {
+                Text(
+                    "Convert between weight units for payload, baggage and performance calculations.\n\n" +
+                            "• Enter a value in any weight unit field\n" +
+                            "• All other units update automatically\n" +
+                            "• Drag cards with the menu icon to reorder\n" +
+                            "• Swipe cards left to delete (minimum 2 required)\n" +
+                            "• Tap unit names to change the unit type\n" +
+                            "• Use the + button to add additional units\n\n" +
+                            "Common Aviation References:\n" +
+                            "• Kilograms (kg) – ICAO standard\n" +
+                            "• Pounds (lb) – FAA/US standard\n" +
+                            "• Tonnes (t) – Large aircraft mass"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onInfoDismiss?.invoke() }) { Text("OK") }
+            }
+        )
+    }
+
+    // Effect: When number of cards grows
+    LaunchedEffect(unitCards.size) {
+        if (unitCards.size > 2) {
+            val idxToUpdate = unitCards.indexOfFirst { it.value.isNotBlank() }
+            if (idxToUpdate != -1) {
+                val text = unitCards[idxToUpdate].value
+                recalcAll(idxToUpdate, text)
+            }
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.alex.aerotool.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
@@ -9,6 +10,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import com.alex.aerotool.ui.theme.ThemeController
 import kotlin.math.abs
@@ -193,34 +198,27 @@ fun GeoCoordinateScreen(
             "__°__.____'_"
     }
 
-    Column(Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         if (showInfo) {
             AlertDialog(
                 onDismissRequest = { onInfoDismiss?.invoke() },
-                title = { Text("About Coordinate Converter") },
+                title = { Text("Geo Coordinate Tool") },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Convert between different coordinate formats. Enter both latitude and longitude for conversion.")
-                        Spacer(Modifier.height(7.dp))
-                        Text("Supported Formats:", style = MaterialTheme.typography.labelLarge)
-                        Text(
-                            "• Decimal Degrees (DD): 40.123456, -74.123456",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Text(
-                            "• Degrees Minutes Seconds (DMS): 40°7'24.44\"N, 74°7'24.44\"W",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Text(
-                            "• Degrees Minutes (DM): 40°7.4073'N, 74°7.4073'W",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "Note: Both lat/lon must be entered for conversion to work.",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
+                    Text(
+                        "Convert between Degrees Minutes Seconds (DMS) and Decimal Degrees (DD). Useful for waypoint entry and mapping.\n\n" +
+                                "• Enter coordinates in either DMS or DD format\n" +
+                                "• Use hemisphere selectors (N/S, E/W) as needed\n" +
+                                "• Tap the convert button to transform between formats\n" +
+                                "• Results show both formats for cross-checking\n\n" +
+                                "Example:\n" +
+                                "  DMS: 45°30'15\" N 073°34'55\" W\n" +
+                                "  →  DD: 45.50417°, -73.58194°"
+                    )
                 },
                 confirmButton = {
                     TextButton(onClick = { onInfoDismiss?.invoke() }) { Text("OK") }
@@ -228,259 +226,422 @@ fun GeoCoordinateScreen(
             )
         }
 
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(11.dp))
         Icon(
-            Icons.Default.Explore,
+            imageVector = Icons.Default.Explore,
             contentDescription = null,
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .size(32.dp),
-            tint = MaterialTheme.colorScheme.primary
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(38.dp)
         )
-        Spacer(Modifier.height(3.dp))
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Geo Coordinate",
+            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.height(2.dp))
         Text(
             "Enter coordinates in any format",
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
 
-        Card(
-            shape = RoundedCornerShape(18.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-            modifier = Modifier
-                .padding(18.dp)
-                .fillMaxWidth()
+        LazyColumn(
+            modifier = Modifier.fillMaxSize()
         ) {
-            Column(
-                Modifier
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(9.dp)
-            ) {
-                val isBlank =
-                    decimalLat.isBlank() && decimalLon.isBlank() && dmsLat == "__°__'__.__\"_" && dmsLon == "__°__'__.__\"_" && dmLat == "__°__.____'_" && dmLon == "__°__.____'_"
+            // Decimal Degrees Section
+            item {
+                Text(
+                    "Decimal Degrees",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
-                // Decimal Degrees Section
-                Text("Decimal Degrees", style = MaterialTheme.typography.labelMedium)
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            item {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                ) {
                     Card(
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "dd") Color(
+                            containerColor = if (decimalLat.isBlank() && decimalLon.isBlank() && dmsLat == "__°__'__.__\"_" && dmsLon == "__°__'__.__\"_" && dmLat == "__°__.____'_" && dmLon == "__°__.____'_") MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "dd") Color(
                                 0xFF223372
                             ) else Color(0xFF117449)
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        border = if (lastEdited == "dd") androidx.compose.foundation.BorderStroke(
+                            2.dp,
+                            MaterialTheme.colorScheme.outline
+                        ) else null,
                         modifier = Modifier.weight(1f)
                     ) {
-                        OutlinedTextField(
-                            value = decimalLat,
-                            onValueChange = {
-                                decimalLat = it
-                                lastEdited = "dd"
-                                updateFromDecimal()
-                            },
-                            label = { Text("Latitude") },
-                            placeholder = { Text("40.123456") },
-                            singleLine = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp, vertical = 2.dp),
-                            enabled = lastEdited == "dd" || (decimalLat.isEmpty() && decimalLon.isEmpty()),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                disabledTextColor = Color.White
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "🌐",
+                                    fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                                    modifier = Modifier.padding(end = 6.dp)
+                                )
+                                Text(
+                                    "Latitude",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (lastEdited == "dd") Color.White else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            OutlinedTextField(
+                                value = decimalLat,
+                                onValueChange = {
+                                    decimalLat = it
+                                    lastEdited = "dd"
+                                },
+                                placeholder = { Text("40.123456") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions.Default.copy(
+                                    keyboardType = KeyboardType.Decimal,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    updateFromDecimal()
+                                }),
+                                enabled = lastEdited == "dd" || (decimalLat.isEmpty() && decimalLon.isEmpty()),
+                                colors = if (lastEdited == "dd") OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    disabledTextColor = Color.White
+                                ) else OutlinedTextFieldDefaults.colors()
                             )
-                        )
+                        }
                     }
 
                     Card(
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "dd") Color(
+                            containerColor = if (decimalLat.isBlank() && decimalLon.isBlank() && dmsLat == "__°__'__.__\"_" && dmsLon == "__°__'__.__\"_" && dmLat == "__°__.____'_" && dmLon == "__°__.____'_") MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "dd") Color(
                                 0xFF223372
                             ) else Color(0xFF117449)
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        border = if (lastEdited == "dd") androidx.compose.foundation.BorderStroke(
+                            2.dp,
+                            MaterialTheme.colorScheme.outline
+                        ) else null,
                         modifier = Modifier.weight(1f)
                     ) {
-                        OutlinedTextField(
-                            value = decimalLon,
-                            onValueChange = {
-                                decimalLon = it
-                                lastEdited = "dd"
-                                updateFromDecimal()
-                            },
-                            label = { Text("Longitude") },
-                            placeholder = { Text("-74.123456") },
-                            singleLine = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp, vertical = 2.dp),
-                            enabled = lastEdited == "dd" || (decimalLat.isEmpty() && decimalLon.isEmpty()),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                disabledTextColor = Color.White
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "🗺️",
+                                    fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                                    modifier = Modifier.padding(end = 6.dp)
+                                )
+                                Text(
+                                    "Longitude",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (lastEdited == "dd") Color.White else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            OutlinedTextField(
+                                value = decimalLon,
+                                onValueChange = {
+                                    decimalLon = it
+                                    lastEdited = "dd"
+                                },
+                                placeholder = { Text("-74.123456") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions.Default.copy(
+                                    keyboardType = KeyboardType.Decimal,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    updateFromDecimal()
+                                }),
+                                enabled = lastEdited == "dd" || (decimalLat.isEmpty() && decimalLon.isEmpty()),
+                                colors = if (lastEdited == "dd") OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    disabledTextColor = Color.White
+                                ) else OutlinedTextFieldDefaults.colors()
                             )
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(8.dp))
-
-                // DMS Section
-                Text("Degrees Minutes Seconds", style = MaterialTheme.typography.labelMedium)
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "dms") Color(
-                                0xFF223372
-                            ) else Color(0xFF117449)
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        OutlinedTextField(
-                            value = dmsLat,
-                            onValueChange = {
-                                dmsLat = formatDMSInput(it)
-                                lastEdited = "dms"
-                                updateFromDMS()
-                            },
-                            label = { Text("Latitude DMS") },
-                            placeholder = { Text("__°__'__.__\"_") },
-                            singleLine = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp, vertical = 2.dp),
-                            enabled = lastEdited == "dms" || (dmsLat == "__°__'__.__\"_" && dmsLon == "__°__'__.__\"_"),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                disabledTextColor = Color.White
-                            )
-                        )
-                    }
-
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "dms") Color(
-                                0xFF223372
-                            ) else Color(0xFF117449)
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        OutlinedTextField(
-                            value = dmsLon,
-                            onValueChange = {
-                                dmsLon = formatDMSInput(it)
-                                lastEdited = "dms"
-                                updateFromDMS()
-                            },
-                            label = { Text("Longitude DMS") },
-                            placeholder = { Text("__°__'__.__\"_") },
-                            singleLine = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp, vertical = 2.dp),
-                            enabled = lastEdited == "dms" || (dmsLat == "__°__'__.__\"_" && dmsLon == "__°__'__.__\"_"),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                disabledTextColor = Color.White
-                            )
-                        )
+                        }
                     }
                 }
+            }
 
-                Spacer(Modifier.height(8.dp))
+            item { Spacer(Modifier.height(16.dp)) }
 
-                // DM Section
-                Text("Degrees Minutes", style = MaterialTheme.typography.labelMedium)
+            // DMS Section
+            item {
+                Text(
+                    "Degrees Minutes Seconds",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            item {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                ) {
                     Card(
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "dm") Color(
+                            containerColor = if (decimalLat.isBlank() && decimalLon.isBlank() && dmsLat == "__°__'__.__\"_" && dmsLon == "__°__'__.__\"_" && dmLat == "__°__.____'_" && dmLon == "__°__.____'_") MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "dms") Color(
                                 0xFF223372
                             ) else Color(0xFF117449)
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        border = if (lastEdited == "dms") androidx.compose.foundation.BorderStroke(
+                            2.dp,
+                            MaterialTheme.colorScheme.outline
+                        ) else null,
                         modifier = Modifier.weight(1f)
                     ) {
-                        OutlinedTextField(
-                            value = dmLat,
-                            onValueChange = {
-                                dmLat = formatDMInput(it)
-                                lastEdited = "dm"
-                                updateFromDM()
-                            },
-                            label = { Text("Latitude DM") },
-                            placeholder = { Text("__°__.____'_") },
-                            singleLine = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp, vertical = 2.dp),
-                            enabled = lastEdited == "dm" || (dmLat == "__°__.____'_" && dmLon == "__°__.____'_"),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                disabledTextColor = Color.White
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "🧭",
+                                    fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                                    modifier = Modifier.padding(end = 6.dp)
+                                )
+                                Text(
+                                    "Latitude DMS",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (lastEdited == "dms") Color.White else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            OutlinedTextField(
+                                value = dmsLat,
+                                onValueChange = {
+                                    dmsLat = formatDMSInput(it)
+                                    lastEdited = "dms"
+                                },
+                                placeholder = { Text("__°__'__.__\"_") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions.Default.copy(
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    updateFromDMS()
+                                }),
+                                enabled = lastEdited == "dms" || (dmsLat == "__°__'__.__\"_" && dmsLon == "__°__'__.__\"_"),
+                                colors = if (lastEdited == "dms") OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    disabledTextColor = Color.White
+                                ) else OutlinedTextFieldDefaults.colors()
                             )
-                        )
+                        }
                     }
 
                     Card(
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "dm") Color(
+                            containerColor = if (decimalLat.isBlank() && decimalLon.isBlank() && dmsLat == "__°__'__.__\"_" && dmsLon == "__°__'__.__\"_" && dmLat == "__°__.____'_" && dmLon == "__°__.____'_") MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "dms") Color(
                                 0xFF223372
                             ) else Color(0xFF117449)
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        border = if (lastEdited == "dms") androidx.compose.foundation.BorderStroke(
+                            2.dp,
+                            MaterialTheme.colorScheme.outline
+                        ) else null,
                         modifier = Modifier.weight(1f)
                     ) {
-                        OutlinedTextField(
-                            value = dmLon,
-                            onValueChange = {
-                                dmLon = formatDMInput(it)
-                                lastEdited = "dm"
-                                updateFromDM()
-                            },
-                            label = { Text("Longitude DM") },
-                            placeholder = { Text("__°__.____'_") },
-                            singleLine = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp, vertical = 2.dp),
-                            enabled = lastEdited == "dm" || (dmLat == "__°__.____'_" && dmLon == "__°__.____'_"),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                disabledTextColor = Color.White
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "🎯",
+                                    fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                                    modifier = Modifier.padding(end = 6.dp)
+                                )
+                                Text(
+                                    "Longitude DMS",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (lastEdited == "dms") Color.White else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            OutlinedTextField(
+                                value = dmsLon,
+                                onValueChange = {
+                                    dmsLon = formatDMSInput(it)
+                                    lastEdited = "dms"
+                                },
+                                placeholder = { Text("__°__'__.__\"_") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions.Default.copy(
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    updateFromDMS()
+                                }),
+                                enabled = lastEdited == "dms" || (dmsLat == "__°__'__.__\"_" && dmsLon == "__°__'__.__\"_"),
+                                colors = if (lastEdited == "dms") OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    disabledTextColor = Color.White
+                                ) else OutlinedTextFieldDefaults.colors()
                             )
-                        )
+                        }
                     }
                 }
+            }
 
-                Spacer(Modifier.height(5.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            item { Spacer(Modifier.height(16.dp)) }
+
+            // DM Section
+            item {
+                Text(
+                    "Degrees Minutes",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            item {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                ) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (decimalLat.isBlank() && decimalLon.isBlank() && dmsLat == "__°__'__.__\"_" && dmsLon == "__°__'__.__\"_" && dmLat == "__°__.____'_" && dmLon == "__°__.____'_") MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "dm") Color(
+                                0xFF223372
+                            ) else Color(0xFF117449)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        border = if (lastEdited == "dm") androidx.compose.foundation.BorderStroke(
+                            2.dp,
+                            MaterialTheme.colorScheme.outline
+                        ) else null,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "🎨",
+                                    fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                                    modifier = Modifier.padding(end = 6.dp)
+                                )
+                                Text(
+                                    "Latitude DM",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (lastEdited == "dm") Color.White else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            OutlinedTextField(
+                                value = dmLat,
+                                onValueChange = {
+                                    dmLat = formatDMInput(it)
+                                    lastEdited = "dm"
+                                },
+                                placeholder = { Text("__°__.____'_") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions.Default.copy(
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    updateFromDM()
+                                }),
+                                enabled = lastEdited == "dm" || (dmLat == "__°__.____'_" && dmLon == "__°__.____'_"),
+                                colors = if (lastEdited == "dm") OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    disabledTextColor = Color.White
+                                ) else OutlinedTextFieldDefaults.colors()
+                            )
+                        }
+                    }
+
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (decimalLat.isBlank() && decimalLon.isBlank() && dmsLat == "__°__'__.__\"_" && dmsLon == "__°__'__.__\"_" && dmLat == "__°__.____'_" && dmLon == "__°__.____'_") MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "dm") Color(
+                                0xFF223372
+                            ) else Color(0xFF117449)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        border = if (lastEdited == "dm") androidx.compose.foundation.BorderStroke(
+                            2.dp,
+                            MaterialTheme.colorScheme.outline
+                        ) else null,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "📍",
+                                    fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                                    modifier = Modifier.padding(end = 6.dp)
+                                )
+                                Text(
+                                    "Longitude DM",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (lastEdited == "dm") Color.White else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            OutlinedTextField(
+                                value = dmLon,
+                                onValueChange = {
+                                    dmLon = formatDMInput(it)
+                                    lastEdited = "dm"
+                                },
+                                placeholder = { Text("__°__.____'_") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions.Default.copy(
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    updateFromDM()
+                                }),
+                                enabled = lastEdited == "dm" || (dmLat == "__°__.____'_" && dmLon == "__°__.____'_"),
+                                colors = if (lastEdited == "dm") OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    disabledTextColor = Color.White
+                                ) else OutlinedTextFieldDefaults.colors()
+                            )
+                        }
+                    }
+                }
+            }
+
+            item { Spacer(Modifier.height(16.dp)) }
+
+            // Clear button
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                     FilledTonalButton(
                         onClick = { clearAll(); lastEdited = null },
                         modifier = Modifier.height(38.dp)

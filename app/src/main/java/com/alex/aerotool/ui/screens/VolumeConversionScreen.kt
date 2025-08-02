@@ -50,7 +50,7 @@ data class PersistedVolumeUnitCard(val unitKey: String, val value: String)
 val Context.volumeUnitCardsDataStore by preferencesDataStore("volume_unit_cards")
 val VOLUME_UNIT_CARDS_KEY = stringPreferencesKey("volume_unit_cards")
 
-fun Double.roundMostVol(n: Int = 4): String = "% .${n}f".format(this).trim()
+fun Double.roundMostVol(n: Int = 4): String = "%.${n}f".format(this).trim()
 
 @Composable
 fun VolumeConversionScreen(
@@ -70,12 +70,13 @@ fun VolumeConversionScreen(
 
     val unitDefs = listOf(
         UnitDef("L", "Liters", "💧", "L", { it }, { it }),
-        UnitDef("gal", "Gallons", "🛢", "gal", { it * 3.78541 }, { it / 3.78541 }),
+        UnitDef("gal", "Gallons (US)", "🛢️", "gal", { it * 3.785412 }, { it / 3.785412 }),
+        UnitDef("impgal", "Gallons (Imp)", "🏺", "gal", { it * 4.546092 }, { it / 4.546092 }),
         UnitDef("qt", "Quarts", "🥛", "qt", { it * 0.946353 }, { it / 0.946353 }),
         UnitDef("pt", "Pints", "🥃", "pt", { it * 0.473176 }, { it / 0.473176 }),
         UnitDef("cup", "Cups", "☕", "cup", { it * 0.236588 }, { it / 0.236588 }),
         UnitDef("floz", "Fl Oz", "🥄", "fl oz", { it * 0.0295735 }, { it / 0.0295735 }),
-        UnitDef("mL", "MilliLiters", "🧬", "mL", { it / 1000.0 }, { it * 1000.0 }),
+        UnitDef("mL", "MilliLiters", "🧪", "mL", { it / 1000.0 }, { it * 1000.0 }),
     )
 
     data class UnitCard(var unitKey: String, var value: String)
@@ -196,6 +197,32 @@ fun VolumeConversionScreen(
     var activeUnitPickerIdx by remember { mutableStateOf<Int?>(null) }
     var activeUnitSearch by remember { mutableStateOf("") }
     val availableUnits = unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } }
+
+    // Info dialog for volume conversion help
+    if (showInfo) {
+        AlertDialog(
+            onDismissRequest = { onInfoDismiss?.invoke() },
+            title = { Text("Volume Conversion Tool") },
+            text = {
+                Text(
+                    "Convert between volume units useful for fuel and liquid calculations in aviation.\n\n" +
+                            "• Enter a value in any volume unit field\n" +
+                            "• All other units update automatically\n" +
+                            "• Drag cards with the menu icon to reorder\n" +
+                            "• Swipe cards left to delete (minimum 2 required)\n" +
+                            "• Tap unit names to change the unit type\n" +
+                            "• Use the + button to add additional units\n\n" +
+                            "Common Aviation References:\n" +
+                            "• Liters (L) – Metric fuel quantity\n" +
+                            "• Gallons (gal) – US fuel quantity\n" +
+                            "• Milliliters (mL) – Small quantities for oil or additives"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onInfoDismiss?.invoke() }) { Text("OK") }
+            }
+        )
+    }
 
     Box(Modifier.fillMaxSize()) {
         Column(

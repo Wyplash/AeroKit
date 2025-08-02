@@ -1,7 +1,10 @@
 package com.alex.aerotool.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material3.*
@@ -9,6 +12,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.alex.aerotool.ui.theme.ThemeController
 
@@ -27,25 +34,25 @@ fun FuelConversionScreen(
     var fuelType by remember { mutableStateOf("100LL") }
     var lastEdited by remember { mutableStateOf<String?>(null) }
 
-    // Fuel densities at 15°C (kg/L)
+    // Fuel densities at 15°C (kg/L) - corrected values
     val fuelDensities = mapOf(
         "100LL" to 0.72, // 100 Low Lead (AvGas)
-        "Jet A" to 0.775, // Jet A fuel
-        "Jet A-1" to 0.775, // Jet A-1 fuel
-        "Mogas" to 0.72 // Motor gasoline
+        "Jet A" to 0.803, // Jet A fuel (corrected from 0.775)
+        "Jet A-1" to 0.803, // Jet A-1 fuel (corrected from 0.775)
+        "Mogas" to 0.745 // Motor gasoline (corrected from 0.72)
     )
 
     fun getCurrentDensity(): Double = fuelDensities[fuelType] ?: 0.72
 
-    // Volume conversions
+    // Volume conversions - fixed conversion factors
     fun updateFromUSGallons(text: String) {
         val value = text.toDoubleOrNull()
         if (value != null) {
             val density = getCurrentDensity()
             imperialGallons = (value * 0.832674).round(3)
-            liters = (value * 3.78541).round(2)
-            pounds = (value * 3.78541 * density * 2.20462).round(2)
-            kilograms = (value * 3.78541 * density).round(2)
+            liters = (value * 3.785412).round(2)  // Fixed: was 3.78541
+            pounds = (value * 3.785412 * density * 2.20462).round(2)
+            kilograms = (value * 3.785412 * density).round(2)
         } else {
             imperialGallons = ""; liters = ""; pounds = ""; kilograms = ""
         }
@@ -56,9 +63,9 @@ fun FuelConversionScreen(
         if (value != null) {
             val density = getCurrentDensity()
             usGallons = (value * 1.20095).round(3)
-            liters = (value * 4.54609).round(2)
-            pounds = (value * 4.54609 * density * 2.20462).round(2)
-            kilograms = (value * 4.54609 * density).round(2)
+            liters = (value * 4.546092).round(2)  // Fixed: was 4.54609
+            pounds = (value * 4.546092 * density * 2.20462).round(2)
+            kilograms = (value * 4.546092 * density).round(2)
         } else {
             usGallons = ""; liters = ""; pounds = ""; kilograms = ""
         }
@@ -77,7 +84,7 @@ fun FuelConversionScreen(
         }
     }
 
-    // Weight conversions
+    // Weight conversions - fixed conversion factors
     fun updateFromPounds(text: String) {
         val value = text.toDoubleOrNull()
         if (value != null) {
@@ -118,7 +125,12 @@ fun FuelConversionScreen(
         usGallons = ""; imperialGallons = ""; liters = ""; pounds = ""; kilograms = ""
     }
 
-    Column(Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         if (showInfo) {
             AlertDialog(
                 onDismissRequest = { onInfoDismiss?.invoke() },
@@ -136,11 +148,11 @@ fun FuelConversionScreen(
                             style = MaterialTheme.typography.bodySmall
                         )
                         Text(
-                            "• Jet A/A-1: 0.775 kg/L (6.5 lb/gal)",
+                            "• Jet A/A-1: 0.803 kg/L (6.7 lb/gal)",
                             style = MaterialTheme.typography.bodySmall
                         )
                         Text(
-                            "• Mogas: 0.72 kg/L (6.0 lb/gal)",
+                            "• Mogas: 0.745 kg/L (6.2 lb/gal)",
                             style = MaterialTheme.typography.bodySmall
                         )
                         Spacer(Modifier.height(4.dp))
@@ -156,57 +168,57 @@ fun FuelConversionScreen(
             )
         }
 
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(11.dp))
         Icon(
-            Icons.Default.LocalGasStation,
+            imageVector = Icons.Default.LocalGasStation,
             contentDescription = null,
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .size(32.dp),
-            tint = MaterialTheme.colorScheme.primary
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(38.dp)
         )
-        Spacer(Modifier.height(3.dp))
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Fuel",
+            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.height(2.dp))
         Text(
             "Enter fuel quantity in any unit",
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
 
-        Card(
-            shape = RoundedCornerShape(18.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-            modifier = Modifier
-                .padding(18.dp)
-                .fillMaxWidth()
+        LazyColumn(
+            modifier = Modifier.fillMaxSize()
         ) {
-            Column(
-                Modifier
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(9.dp)
-            ) {
-                val isBlank =
-                    usGallons.isBlank() && imperialGallons.isBlank() && liters.isBlank() && pounds.isBlank() && kilograms.isBlank()
-
-                // Fuel Type Selector
+            // Fuel Type Selector Card
+            item {
                 Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    ),
+                    shape = RoundedCornerShape(20.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 5.dp)
                 ) {
-                    Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
-                        Text(
-                            "Fuel Type",
-                            style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.padding(horizontal = 12.dp)
-                        )
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "⛽",
+                                fontSize = MaterialTheme.typography.bodyLarge.fontSize,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text(
+                                "Fuel Type",
+                                style = MaterialTheme.typography.titleLarge,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 4.dp)
                         ) {
                             fuelDensities.keys.forEach { type ->
                                 FilterChip(
@@ -218,7 +230,7 @@ fun FuelConversionScreen(
                                     label = {
                                         Text(
                                             type,
-                                            style = MaterialTheme.typography.labelSmall
+                                            style = MaterialTheme.typography.labelMedium
                                         )
                                     }
                                 )
@@ -226,184 +238,487 @@ fun FuelConversionScreen(
                         }
                     }
                 }
+            }
 
-                Text("Volume", style = MaterialTheme.typography.labelMedium)
+            item { Spacer(Modifier.height(8.dp)) }
 
-                // US Gallons
+            // Volume Section Header
+            item {
+                Text(
+                    "Volume",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // US Gallons
+            item {
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "usgal") Color(
+                        containerColor = if (usGallons.isEmpty() && imperialGallons.isEmpty() && liters.isEmpty() && pounds.isEmpty() && kilograms.isEmpty()) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "usgal") Color(
                             0xFF223372
                         ) else Color(0xFF117449)
                     ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    shape = RoundedCornerShape(20.dp),
+                    border = if (lastEdited == "usgal") androidx.compose.foundation.BorderStroke(
+                        2.dp,
+                        MaterialTheme.colorScheme.outline
+                    ) else null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 5.dp)
                 ) {
-                    OutlinedTextField(
-                        value = usGallons,
-                        onValueChange = {
-                            usGallons = it
-                            lastEdited = "usgal"
-                            updateFromUSGallons(it)
-                        },
-                        label = { Text("US Gallons") },
-                        placeholder = { Text("50") },
-                        singleLine = true,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        enabled = lastEdited == "usgal" || usGallons.isEmpty(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            disabledTextColor = Color.White
+                            .heightIn(min = 64.dp)
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            "🛢",
+                            fontSize = MaterialTheme.typography.bodyLarge.fontSize,
+                            modifier = Modifier.padding(end = 8.dp)
                         )
-                    )
+                        Text(
+                            "US Gallons",
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier
+                                .weight(2.2f)
+                                .padding(end = 2.dp)
+                        )
+                        Box(
+                            Modifier
+                                .fillMaxWidth(0.46f)
+                                .height(56.dp)
+                        ) {
+                            Row(
+                                Modifier.matchParentSize(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = usGallons,
+                                    onValueChange = {
+                                        usGallons = it
+                                        lastEdited = "usgal"
+                                    },
+                                    label = null,
+                                    singleLine = true,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                        textAlign = TextAlign.End,
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    keyboardOptions = KeyboardOptions.Default.copy(
+                                        keyboardType = KeyboardType.Decimal,
+                                        imeAction = ImeAction.Done
+                                    ),
+                                    keyboardActions = KeyboardActions(onDone = {
+                                        updateFromUSGallons(usGallons)
+                                    }),
+                                    colors = if (lastEdited == "usgal") OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent,
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White
+                                    ) else OutlinedTextFieldDefaults.colors(),
+                                    enabled = lastEdited == "usgal" || usGallons.isEmpty()
+                                )
+                                Text(
+                                    "gal",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (lastEdited == "usgal") Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .padding(start = 8.dp, end = 6.dp)
+                                        .widthIn(min = 32.dp),
+                                    textAlign = TextAlign.End
+                                )
+                            }
+                        }
+                    }
                 }
+            }
 
-                // Imperial Gallons
+            // Imperial Gallons
+            item {
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "impgal") Color(
+                        containerColor = if (usGallons.isEmpty() && imperialGallons.isEmpty() && liters.isEmpty() && pounds.isEmpty() && kilograms.isEmpty()) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "impgal") Color(
                             0xFF223372
                         ) else Color(0xFF117449)
                     ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    shape = RoundedCornerShape(20.dp),
+                    border = if (lastEdited == "impgal") androidx.compose.foundation.BorderStroke(
+                        2.dp,
+                        MaterialTheme.colorScheme.outline
+                    ) else null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 5.dp)
                 ) {
-                    OutlinedTextField(
-                        value = imperialGallons,
-                        onValueChange = {
-                            imperialGallons = it
-                            lastEdited = "impgal"
-                            updateFromImperialGallons(it)
-                        },
-                        label = { Text("Imperial Gallons") },
-                        placeholder = { Text("41.6") },
-                        singleLine = true,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        enabled = lastEdited == "impgal" || imperialGallons.isEmpty(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            disabledTextColor = Color.White
+                            .heightIn(min = 64.dp)
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            "🏺",
+                            fontSize = MaterialTheme.typography.bodyLarge.fontSize,
+                            modifier = Modifier.padding(end = 8.dp)
                         )
-                    )
+                        Text(
+                            "Imperial Gallons",
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier
+                                .weight(2.2f)
+                                .padding(end = 2.dp)
+                        )
+                        Box(
+                            Modifier
+                                .fillMaxWidth(0.46f)
+                                .height(56.dp)
+                        ) {
+                            Row(
+                                Modifier.matchParentSize(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = imperialGallons,
+                                    onValueChange = {
+                                        imperialGallons = it
+                                        lastEdited = "impgal"
+                                    },
+                                    label = null,
+                                    singleLine = true,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                        textAlign = TextAlign.End,
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    keyboardOptions = KeyboardOptions.Default.copy(
+                                        keyboardType = KeyboardType.Decimal,
+                                        imeAction = ImeAction.Done
+                                    ),
+                                    keyboardActions = KeyboardActions(onDone = {
+                                        updateFromImperialGallons(imperialGallons)
+                                    }),
+                                    colors = if (lastEdited == "impgal") OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent,
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White
+                                    ) else OutlinedTextFieldDefaults.colors(),
+                                    enabled = lastEdited == "impgal" || imperialGallons.isEmpty()
+                                )
+                                Text(
+                                    "gal",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (lastEdited == "impgal") Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .padding(start = 8.dp, end = 6.dp)
+                                        .widthIn(min = 32.dp),
+                                    textAlign = TextAlign.End
+                                )
+                            }
+                        }
+                    }
                 }
+            }
 
-                // Liters
+            // Liters
+            item {
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "liters") Color(
+                        containerColor = if (usGallons.isEmpty() && imperialGallons.isEmpty() && liters.isEmpty() && pounds.isEmpty() && kilograms.isEmpty()) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "liters") Color(
                             0xFF223372
                         ) else Color(0xFF117449)
                     ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    shape = RoundedCornerShape(20.dp),
+                    border = if (lastEdited == "liters") androidx.compose.foundation.BorderStroke(
+                        2.dp,
+                        MaterialTheme.colorScheme.outline
+                    ) else null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 5.dp)
                 ) {
-                    OutlinedTextField(
-                        value = liters,
-                        onValueChange = {
-                            liters = it
-                            lastEdited = "liters"
-                            updateFromLiters(it)
-                        },
-                        label = { Text("Liters") },
-                        placeholder = { Text("189") },
-                        singleLine = true,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        enabled = lastEdited == "liters" || liters.isEmpty(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            disabledTextColor = Color.White
+                            .heightIn(min = 64.dp)
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            "💧",
+                            fontSize = MaterialTheme.typography.bodyLarge.fontSize,
+                            modifier = Modifier.padding(end = 8.dp)
                         )
-                    )
+                        Text(
+                            "Liters",
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier
+                                .weight(2.2f)
+                                .padding(end = 2.dp)
+                        )
+                        Box(
+                            Modifier
+                                .fillMaxWidth(0.46f)
+                                .height(56.dp)
+                        ) {
+                            Row(
+                                Modifier.matchParentSize(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = liters,
+                                    onValueChange = {
+                                        liters = it
+                                        lastEdited = "liters"
+                                    },
+                                    label = null,
+                                    singleLine = true,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                        textAlign = TextAlign.End,
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    keyboardOptions = KeyboardOptions.Default.copy(
+                                        keyboardType = KeyboardType.Decimal,
+                                        imeAction = ImeAction.Done
+                                    ),
+                                    keyboardActions = KeyboardActions(onDone = {
+                                        updateFromLiters(liters)
+                                    }),
+                                    colors = if (lastEdited == "liters") OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent,
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White
+                                    ) else OutlinedTextFieldDefaults.colors(),
+                                    enabled = lastEdited == "liters" || liters.isEmpty()
+                                )
+                                Text(
+                                    "L",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (lastEdited == "liters") Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .padding(start = 8.dp, end = 6.dp)
+                                        .widthIn(min = 32.dp),
+                                    textAlign = TextAlign.End
+                                )
+                            }
+                        }
+                    }
                 }
+            }
 
-                Spacer(Modifier.height(4.dp))
-                Text("Weight", style = MaterialTheme.typography.labelMedium)
+            item { Spacer(Modifier.height(8.dp)) }
 
-                // Pounds
+            // Weight Section Header
+            item {
+                Text(
+                    "Weight",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Pounds
+            item {
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "pounds") Color(
+                        containerColor = if (usGallons.isEmpty() && imperialGallons.isEmpty() && liters.isEmpty() && pounds.isEmpty() && kilograms.isEmpty()) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "pounds") Color(
                             0xFF223372
                         ) else Color(0xFF117449)
                     ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    shape = RoundedCornerShape(20.dp),
+                    border = if (lastEdited == "pounds") androidx.compose.foundation.BorderStroke(
+                        2.dp,
+                        MaterialTheme.colorScheme.outline
+                    ) else null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 5.dp)
                 ) {
-                    OutlinedTextField(
-                        value = pounds,
-                        onValueChange = {
-                            pounds = it
-                            lastEdited = "pounds"
-                            updateFromPounds(it)
-                        },
-                        label = { Text("Pounds") },
-                        placeholder = { Text("300") },
-                        singleLine = true,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        enabled = lastEdited == "pounds" || pounds.isEmpty(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            disabledTextColor = Color.White
+                            .heightIn(min = 64.dp)
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            "⚖️",
+                            fontSize = MaterialTheme.typography.bodyLarge.fontSize,
+                            modifier = Modifier.padding(end = 8.dp)
                         )
-                    )
+                        Text(
+                            "Pounds",
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier
+                                .weight(2.2f)
+                                .padding(end = 2.dp)
+                        )
+                        Box(
+                            Modifier
+                                .fillMaxWidth(0.46f)
+                                .height(56.dp)
+                        ) {
+                            Row(
+                                Modifier.matchParentSize(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = pounds,
+                                    onValueChange = {
+                                        pounds = it
+                                        lastEdited = "pounds"
+                                    },
+                                    label = null,
+                                    singleLine = true,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                        textAlign = TextAlign.End,
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    keyboardOptions = KeyboardOptions.Default.copy(
+                                        keyboardType = KeyboardType.Decimal,
+                                        imeAction = ImeAction.Done
+                                    ),
+                                    keyboardActions = KeyboardActions(onDone = {
+                                        updateFromPounds(pounds)
+                                    }),
+                                    colors = if (lastEdited == "pounds") OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent,
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White
+                                    ) else OutlinedTextFieldDefaults.colors(),
+                                    enabled = lastEdited == "pounds" || pounds.isEmpty()
+                                )
+                                Text(
+                                    "lb",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (lastEdited == "pounds") Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .padding(start = 8.dp, end = 6.dp)
+                                        .widthIn(min = 32.dp),
+                                    textAlign = TextAlign.End
+                                )
+                            }
+                        }
+                    }
                 }
+            }
 
-                // Kilograms
+            // Kilograms
+            item {
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isBlank) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "kg") Color(
+                        containerColor = if (usGallons.isEmpty() && imperialGallons.isEmpty() && liters.isEmpty() && pounds.isEmpty() && kilograms.isEmpty()) MaterialTheme.colorScheme.surfaceVariant else if (lastEdited == "kg") Color(
                             0xFF223372
                         ) else Color(0xFF117449)
                     ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    shape = RoundedCornerShape(20.dp),
+                    border = if (lastEdited == "kg") androidx.compose.foundation.BorderStroke(
+                        2.dp,
+                        MaterialTheme.colorScheme.outline
+                    ) else null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 5.dp)
                 ) {
-                    OutlinedTextField(
-                        value = kilograms,
-                        onValueChange = {
-                            kilograms = it
-                            lastEdited = "kg"
-                            updateFromKilograms(it)
-                        },
-                        label = { Text("Kilograms") },
-                        placeholder = { Text("136") },
-                        singleLine = true,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        enabled = lastEdited == "kg" || kilograms.isEmpty(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            disabledTextColor = Color.White
+                            .heightIn(min = 64.dp)
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            "🏋️",
+                            fontSize = MaterialTheme.typography.bodyLarge.fontSize,
+                            modifier = Modifier.padding(end = 8.dp)
                         )
-                    )
+                        Text(
+                            "Kilograms",
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier
+                                .weight(2.2f)
+                                .padding(end = 2.dp)
+                        )
+                        Box(
+                            Modifier
+                                .fillMaxWidth(0.46f)
+                                .height(56.dp)
+                        ) {
+                            Row(
+                                Modifier.matchParentSize(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = kilograms,
+                                    onValueChange = {
+                                        kilograms = it
+                                        lastEdited = "kg"
+                                    },
+                                    label = null,
+                                    singleLine = true,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                        textAlign = TextAlign.End,
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    keyboardOptions = KeyboardOptions.Default.copy(
+                                        keyboardType = KeyboardType.Decimal,
+                                        imeAction = ImeAction.Done
+                                    ),
+                                    keyboardActions = KeyboardActions(onDone = {
+                                        updateFromKilograms(kilograms)
+                                    }),
+                                    colors = if (lastEdited == "kg") OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent,
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White
+                                    ) else OutlinedTextFieldDefaults.colors(),
+                                    enabled = lastEdited == "kg" || kilograms.isEmpty()
+                                )
+                                Text(
+                                    "kg",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (lastEdited == "kg") Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .padding(start = 8.dp, end = 6.dp)
+                                        .widthIn(min = 32.dp),
+                                    textAlign = TextAlign.End
+                                )
+                            }
+                        }
+                    }
                 }
+            }
 
-                Spacer(Modifier.height(5.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            item { Spacer(Modifier.height(16.dp)) }
+
+            // Clear button
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                     FilledTonalButton(
                         onClick = { clearAll(); lastEdited = null },
                         modifier = Modifier.height(38.dp)

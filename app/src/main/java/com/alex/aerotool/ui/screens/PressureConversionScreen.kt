@@ -67,12 +67,15 @@ fun PressureConversionScreen(
         val fromBase: (Double) -> Double, // convert from hPa
     )
 
+    fun Double.roundPressure(n: Int = 4): String = "%.${n}f".format(this)
+
     val unitDefs = listOf(
-        UnitDef("hpa", "Hectopascal", "🧊", "hPa", { it }, { it }),
-        UnitDef("inhg", "Inches Hg", "💡", "inHg", { it * 33.8639 }, { it / 33.8639 }),
-        UnitDef("mmhg", "Mm Hg", "🌧", "mmHg", { it * 1.33322 }, { it / 1.33322 }),
-        UnitDef("atm", "Standard Atm.", "⚖️", "atm", { it * 1013.25 }, { it / 1013.25 }),
-        UnitDef("psi", "PSI", "🚏", "psi", { it * 68.9476 }, { it / 68.9476 }),
+        UnitDef("hpa", "Hectopascal", "🌡️", "hPa", { it }, { it }),
+        UnitDef("inhg", "Inches Hg", "📊", "inHg", { it * 33.86389 }, { it / 33.86389 }),
+        UnitDef("mmhg", "Mm Hg", "🔬", "mmHg", { it * 1.333224 }, { it / 1.333224 }),
+        UnitDef("atm", "Standard Atm.", "🌍", "atm", { it * 1013.25 }, { it / 1013.25 }),
+        UnitDef("psi", "PSI", "⚙️", "psi", { it * 68.94757 }, { it / 68.94757 }),
+        UnitDef("pa", "Pascal", "🔬", "Pa", { it * 100 }, { it / 100 }),
     )
 
     data class UnitCard(var unitKey: String, var value: String)
@@ -141,7 +144,7 @@ fun PressureConversionScreen(
         setUnitCards(unitCards.mapIndexed { idx, card ->
             val def = unitDefs.first { it.key == card.unitKey }
             if (idx == fromIdx) card.copy(value = text)
-            else card.copy(value = if (text.isBlank()) "" else def.fromBase(base).toString())
+            else card.copy(value = if (text.isBlank()) "" else def.fromBase(base).roundPressure(4))
         })
     }
 
@@ -156,7 +159,10 @@ fun PressureConversionScreen(
             val baseDef = unitDefs.first { it.key == baseCard.unitKey }
             val base = baseDef.toBase(baseValue)
             val def = unitDefs.first { it.key == newKey }
-            UnitCard(newKey, if (baseCard.value.isBlank()) "" else def.fromBase(base).toString())
+            UnitCard(
+                newKey,
+                if (baseCard.value.isBlank()) "" else def.fromBase(base).roundPressure(4)
+            )
         } else UnitCard(newKey, "")
         setUnitCards(unitCards + card)
         val idxToUpdate = unitCards.indexOfFirst { it.value.isNotBlank() }
@@ -183,6 +189,36 @@ fun PressureConversionScreen(
     var activeUnitPickerIdx by remember { mutableStateOf<Int?>(null) }
     var activeUnitSearch by remember { mutableStateOf("") }
     val availableUnits = unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } }
+
+    val availableUnitsForInfo = unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } }
+
+    // Info dialog for pressure conversion help
+    if (showInfo) {
+        AlertDialog(
+            onDismissRequest = { onInfoDismiss?.invoke() },
+            title = { Text("Pressure Conversion Tool") },
+            text = {
+                Text(
+                    "Convert between barometric pressure units used in aviation and meteorology.\n\n" +
+                            "• Enter a value in any pressure unit field\n" +
+                            "• All other units update automatically\n" +
+                            "• Drag cards with the menu icon to reorder\n" +
+                            "• Swipe cards left to delete (minimum 2 required)\n" +
+                            "• Tap unit names to change the unit type\n" +
+                            "• Use the + button to add additional units\n\n" +
+                            "Common Aviation References:\n" +
+                            "• Hectopascal (hPa) – ICAO standard setting (QNH/QFE)\n" +
+                            "• Inches of Mercury (inHg) – Common in North America\n" +
+                            "• PSI – Pressure for oxygen or hydraulic systems"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onInfoDismiss?.invoke() }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
 
     // Effect: When number of cards grows, auto-convert using first non-blank
     LaunchedEffect(unitCards.size) {

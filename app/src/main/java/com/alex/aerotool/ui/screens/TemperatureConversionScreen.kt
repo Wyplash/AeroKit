@@ -67,16 +67,16 @@ fun TemperatureConversionScreen(
     )
 
     val unitDefs = listOf(
-        UnitDef("c", "Celsius", "🌡", "℃", { it + 273.15 }, { it - 273.15 }),
+        UnitDef("c", "Celsius", "🌡️", "°C", { it + 273.15 }, { it - 273.15 }),
         UnitDef(
             "f",
             "Fahrenheit",
-            "🌡",
-            "℉",
+            "🌡️",
+            "°F",
             { (it - 32) * 5.0 / 9.0 + 273.15 },
             { (it - 273.15) * 9.0 / 5.0 + 32 }),
-        UnitDef("k", "Kelvin", "🥶", "K", { it }, { it }),
-        UnitDef("r", "Rankine", "🔥", "R", { it * 5.0 / 9.0 }, { it * 9.0 / 5.0 }),
+        UnitDef("k", "Kelvin", "❄️", "K", { it }, { it }),
+        UnitDef("r", "Rankine", "🔥", "°R", { it * 5.0 / 9.0 }, { it * 9.0 / 5.0 }),
     )
 
     data class UnitCard(var unitKey: String, var value: String)
@@ -205,6 +205,35 @@ fun TemperatureConversionScreen(
     var activeUnitPickerIdx by remember { mutableStateOf<Int?>(null) }
     var activeUnitSearch by remember { mutableStateOf("") }
     val availableUnits = unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } }
+
+    // Info dialog for temperature conversion help
+    if (showInfo) {
+        AlertDialog(
+            onDismissRequest = { onInfoDismiss?.invoke() },
+            title = { Text("Temperature Conversion Tool") },
+            text = {
+                Text(
+                    "Convert between temperature scales commonly used in aviation and meteorology.\n\n" +
+                            "• Enter a value in any temperature unit field\n" +
+                            "• All other units update automatically\n" +
+                            "• Drag cards using the menu icon to reorder\n" +
+                            "• Swipe cards left to delete (minimum 2 required)\n" +
+                            "• Click unit names to change the unit type\n" +
+                            "• Add more units using the + button\n\n" +
+                            "Aviation Temperature References:\n" +
+                            "• Celsius (°C) - Standard meteorological unit\n" +
+                            "• Fahrenheit (°F) - Common in US aviation\n" +
+                            "• Kelvin (K) - Absolute temperature scale\n" +
+                            "• Rankine (R) - Absolute Fahrenheit scale"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onInfoDismiss?.invoke() }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
 
     Box(Modifier.fillMaxSize()) {
         Column(
@@ -647,4 +676,4 @@ fun TemperatureConversionScreen(
     }
 }
 
-fun Double.roundMostTemp(n: Int = 2): String = "% .${n}f".format(this).trim()
+fun Double.roundMostTemp(n: Int = 2): String = "%.${n}f".format(this)

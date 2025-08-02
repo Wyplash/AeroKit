@@ -53,7 +53,7 @@ val Context.speedUnitCardsDataStore by preferencesDataStore("speed_unit_cards")
 val SPEED_UNIT_CARDS_KEY = stringPreferencesKey("speed_unit_cards")
 
 fun Double.roundMost(n: Int = 4): String =
-    if (n == 0) toInt().toString() else "% .${n}f".format(this).trim()
+    if (n == 0) toInt().toString() else "%.${n}f".format(this).trim()
 
 @Composable
 fun SpeedConversionScreen(
@@ -189,6 +189,34 @@ fun SpeedConversionScreen(
     var activeUnitPickerIdx by remember { mutableStateOf<Int?>(null) }
     var activeUnitSearch by remember { mutableStateOf("") }
     val availableUnits = unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } }
+
+    // Info dialog for speed conversion help
+    if (showInfo) {
+        AlertDialog(
+            onDismissRequest = { onInfoDismiss?.invoke() },
+            title = { Text("Speed Conversion Tool") },
+            text = {
+                Text(
+                    "Convert between various speed units commonly used in aviation.\n\n" +
+                            "• Enter a value in any speed unit field\n" +
+                            "• All other units update automatically\n" +
+                            "• Drag cards using the menu icon to reorder\n" +
+                            "• Swipe cards left to delete (minimum 2 required)\n" +
+                            "• Click unit names to change the unit type\n" +
+                            "• Add more units using the + button\n\n" +
+                            "Common Aviation Speeds:\n" +
+                            "• Knots (kt) - Standard aviation unit\n" +
+                            "• Mach - Speed relative to sound (at sea level)\n" +
+                            "• Miles/hour (mph) - Ground speed reference"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onInfoDismiss?.invoke() }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
 
     LaunchedEffect(unitCards.size) {
         if (unitCards.size > 2) {
