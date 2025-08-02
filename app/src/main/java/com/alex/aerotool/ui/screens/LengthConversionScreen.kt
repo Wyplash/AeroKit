@@ -525,9 +525,8 @@ fun LengthConversionScreen(
                                                 style = MaterialTheme.typography.titleMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier
-                                                    .padding(start = 8.dp, end = 6.dp)
-                                                    .widthIn(min = 32.dp)
-                                                    .align(Alignment.CenterVertically),
+                                                    .padding(start = 2.dp, end = 6.dp)
+                                                    .width(48.dp),
                                                 textAlign = TextAlign.End
                                             )
                                         }

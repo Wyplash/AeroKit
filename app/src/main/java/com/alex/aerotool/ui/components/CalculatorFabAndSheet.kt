@@ -301,14 +301,14 @@ private fun CalculatorContent(
         val btnModifier = Modifier
             .height(64.dp)
             .padding(
-                horizontal = if (calculatorMode == CalculatorMode.TIME) 2.dp else 4.dp,
+                horizontal = 4.dp,
                 vertical = 2.dp
             )
         val buttonRows = if (calculatorMode == CalculatorMode.TIME) {
             listOf(
                 listOf("⏰", "🕒", "C", "⌫"),
-                listOf("7", "8", "9", "+"),
-                listOf("4", "5", "6", "-"),
+                listOf("7", "8", "9", "-"),
+                listOf("4", "5", "6", "+"),
                 listOf("1", "2", "3", "=")
             )
         } else {
@@ -324,8 +324,8 @@ private fun CalculatorContent(
         if (calculatorMode == CalculatorMode.TIME) {
             val buttonRows = listOf(
                 listOf("⏰", "🕒", "C", "⌫"),
-                listOf("7", "8", "9", "+"),
-                listOf("4", "5", "6", "-"),
+                listOf("7", "8", "9", "-"),
+                listOf("4", "5", "6", "+"),
                 listOf("1", "2", "3", "=")
             )
             for ((rowIndex, row) in buttonRows.withIndex()) {
