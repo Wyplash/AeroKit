@@ -18,7 +18,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.alex.aerotool.ui.theme.ThemeController
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.AnnotatedString
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FuelConversionScreen(
     themeController: ThemeController,
@@ -33,6 +40,8 @@ fun FuelConversionScreen(
     var kilograms by remember { mutableStateOf("") }
     var fuelType by remember { mutableStateOf("100LL") }
     var lastEdited by remember { mutableStateOf<String?>(null) }
+    val clipboardManager = LocalClipboardManager.current
+    val hapticFeedback = LocalHapticFeedback.current
 
     // Fuel densities at 15°C (kg/L) - corrected values
     val fuelDensities = mapOf(
@@ -285,12 +294,12 @@ fun FuelConversionScreen(
                             "US Gallons",
                             style = MaterialTheme.typography.titleLarge,
                             modifier = Modifier
-                                .weight(2.2f)
+                                .weight(1.8f)
                                 .padding(end = 2.dp)
                         )
                         Box(
                             Modifier
-                                .fillMaxWidth(0.46f)
+                                .fillMaxWidth(0.54f)
                                 .height(56.dp)
                         ) {
                             Row(
@@ -307,7 +316,22 @@ fun FuelConversionScreen(
                                     singleLine = true,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight(),
+                                        .fillMaxHeight()
+                                        .combinedClickable(
+                                            onLongClick = {
+                                                if (usGallons.isNotEmpty()) {
+                                                    clipboardManager.setText(
+                                                        AnnotatedString(
+                                                            usGallons
+                                                        )
+                                                    )
+                                                    hapticFeedback.performHapticFeedback(
+                                                        HapticFeedbackType.LongPress
+                                                    )
+                                                }
+                                            },
+                                            onClick = {}
+                                        ),
                                     textStyle = MaterialTheme.typography.bodyLarge.copy(
                                         textAlign = TextAlign.End,
                                         fontWeight = FontWeight.Medium
@@ -375,12 +399,12 @@ fun FuelConversionScreen(
                             "Imperial Gallons",
                             style = MaterialTheme.typography.titleLarge,
                             modifier = Modifier
-                                .weight(2.2f)
+                                .weight(1.8f)
                                 .padding(end = 2.dp)
                         )
                         Box(
                             Modifier
-                                .fillMaxWidth(0.46f)
+                                .fillMaxWidth(0.54f)
                                 .height(56.dp)
                         ) {
                             Row(
@@ -397,7 +421,22 @@ fun FuelConversionScreen(
                                     singleLine = true,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight(),
+                                        .fillMaxHeight()
+                                        .combinedClickable(
+                                            onLongClick = {
+                                                if (imperialGallons.isNotEmpty()) {
+                                                    clipboardManager.setText(
+                                                        AnnotatedString(
+                                                            imperialGallons
+                                                        )
+                                                    )
+                                                    hapticFeedback.performHapticFeedback(
+                                                        HapticFeedbackType.LongPress
+                                                    )
+                                                }
+                                            },
+                                            onClick = {}
+                                        ),
                                     textStyle = MaterialTheme.typography.bodyLarge.copy(
                                         textAlign = TextAlign.End,
                                         fontWeight = FontWeight.Medium
@@ -465,12 +504,12 @@ fun FuelConversionScreen(
                             "Liters",
                             style = MaterialTheme.typography.titleLarge,
                             modifier = Modifier
-                                .weight(2.2f)
+                                .weight(1.8f)
                                 .padding(end = 2.dp)
                         )
                         Box(
                             Modifier
-                                .fillMaxWidth(0.46f)
+                                .fillMaxWidth(0.54f)
                                 .height(56.dp)
                         ) {
                             Row(
@@ -487,7 +526,18 @@ fun FuelConversionScreen(
                                     singleLine = true,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight(),
+                                        .fillMaxHeight()
+                                        .combinedClickable(
+                                            onLongClick = {
+                                                if (liters.isNotEmpty()) {
+                                                    clipboardManager.setText(AnnotatedString(liters))
+                                                    hapticFeedback.performHapticFeedback(
+                                                        HapticFeedbackType.LongPress
+                                                    )
+                                                }
+                                            },
+                                            onClick = {}
+                                        ),
                                     textStyle = MaterialTheme.typography.bodyLarge.copy(
                                         textAlign = TextAlign.End,
                                         fontWeight = FontWeight.Medium
@@ -567,12 +617,12 @@ fun FuelConversionScreen(
                             "Pounds",
                             style = MaterialTheme.typography.titleLarge,
                             modifier = Modifier
-                                .weight(2.2f)
+                                .weight(1.8f)
                                 .padding(end = 2.dp)
                         )
                         Box(
                             Modifier
-                                .fillMaxWidth(0.46f)
+                                .fillMaxWidth(0.54f)
                                 .height(56.dp)
                         ) {
                             Row(
@@ -589,7 +639,18 @@ fun FuelConversionScreen(
                                     singleLine = true,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight(),
+                                        .fillMaxHeight()
+                                        .combinedClickable(
+                                            onLongClick = {
+                                                if (pounds.isNotEmpty()) {
+                                                    clipboardManager.setText(AnnotatedString(pounds))
+                                                    hapticFeedback.performHapticFeedback(
+                                                        HapticFeedbackType.LongPress
+                                                    )
+                                                }
+                                            },
+                                            onClick = {}
+                                        ),
                                     textStyle = MaterialTheme.typography.bodyLarge.copy(
                                         textAlign = TextAlign.End,
                                         fontWeight = FontWeight.Medium
@@ -657,12 +718,12 @@ fun FuelConversionScreen(
                             "Kilograms",
                             style = MaterialTheme.typography.titleLarge,
                             modifier = Modifier
-                                .weight(2.2f)
+                                .weight(1.8f)
                                 .padding(end = 2.dp)
                         )
                         Box(
                             Modifier
-                                .fillMaxWidth(0.46f)
+                                .fillMaxWidth(0.54f)
                                 .height(56.dp)
                         ) {
                             Row(
@@ -679,7 +740,22 @@ fun FuelConversionScreen(
                                     singleLine = true,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight(),
+                                        .fillMaxHeight()
+                                        .combinedClickable(
+                                            onLongClick = {
+                                                if (kilograms.isNotEmpty()) {
+                                                    clipboardManager.setText(
+                                                        AnnotatedString(
+                                                            kilograms
+                                                        )
+                                                    )
+                                                    hapticFeedback.performHapticFeedback(
+                                                        HapticFeedbackType.LongPress
+                                                    )
+                                                }
+                                            },
+                                            onClick = {}
+                                        ),
                                     textStyle = MaterialTheme.typography.bodyLarge.copy(
                                         textAlign = TextAlign.End,
                                         fontWeight = FontWeight.Medium
@@ -731,4 +807,7 @@ fun FuelConversionScreen(
     }
 }
 
-private fun Double.round(n: Int): String = "%.${n}f".format(this)
+private fun Double.round(n: Int): String {
+    val precision = n.coerceIn(0, 9)
+    return "%.${precision}f".format(this)
+}

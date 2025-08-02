@@ -1,7 +1,9 @@
 package com.alex.aerotool.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,8 +21,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -28,26 +35,32 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.alex.aerotool.ui.theme.ThemeController
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
 
 @Serializable
-data class PersistedTimeUnitCard(val unitKey: String, val value: String)
+private data class PersistedTimeCard(val unitKey: String, val value: String)
 
-val Context.timeUnitCardsDataStore by preferencesDataStore("time_unit_cards")
-val TIME_UNIT_CARDS_KEY = stringPreferencesKey("time_unit_cards")
+private val Context.timeCardsStore by preferencesDataStore("time_unit_cards")
+private val TIME_CARDS_KEY = stringPreferencesKey("time_cards")
 
+// Helper function for safe decimal formatting
+fun Double.roundMostTime(n: Int = 2): String {
+    val precision = n.coerceIn(0, 9)
+    return "%.${precision}f".format(this)
+}
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TimeConversionScreen(
     themeController: ThemeController,
@@ -55,23 +68,52 @@ fun TimeConversionScreen(
     showInfo: Boolean = false,
     onInfoDismiss: (() -> Unit)? = null
 ) {
+    // Unit definitions
     data class UnitDef(
         val key: String,
         val label: String,
         val emoji: String,
         val abbr: String,
-        val toBase: (Double) -> Double,   // convert to decimal hours
-        val fromBase: (Double) -> Double, // convert from decimal hours
+        val toBase: (String) -> Double?,   // -> decimal hours
+        val fromBase: (Double) -> String   // <- formatted string
     )
 
+    fun stdToDec(str: String): Double? {
+        val parts = str.split(":"); if (parts.size != 2) return null
+        val h = parts[0].toIntOrNull() ?: return null
+        val m = parts[1].toIntOrNull() ?: return null
+        return h + m / 60.0
+    }
+
+    fun decToStd(value: Double): String {
+        val h = value.toInt();
+        val m = ((value - h) * 60).toInt()
+        return String.format("%d:%02d", h, m)
+    }
+
     val unitDefs = listOf(
+        UnitDef("std", "HH:MM", "🕒", "HH:MM", { stdToDec(it) }, { decToStd(it) }),
         UnitDef(
-            "std", "Standard Time", "🕐", "HH:MM",
-            { standardTimeToDecimal(it.toString()) ?: 0.0 },
-            { decimalToStandardTimeValue(it) }),
-        UnitDef("dec", "Decimal Hours", "⏰", "hrs", { it }, { it }),
-        UnitDef("min", "Total Minutes", "⏱", "min", { it / 60.0 }, { it * 60.0 }),
-        UnitDef("sec", "Total Seconds", "⏲", "sec", { it / 3600.0 }, { it * 3600.0 })
+            "dec",
+            "Decimal Hours",
+            "⏰",
+            "hrs",
+            { it.toDoubleOrNull() },
+            { v -> v.roundMostTime(themeController.decimalPrecision) }),
+        UnitDef(
+            "min",
+            "Minutes",
+            "⏱",
+            "min",
+            { it.toDoubleOrNull()?.div(60.0) },
+            { v -> (v * 60).roundToInt().toString() }),
+        UnitDef(
+            "sec",
+            "Seconds",
+            "⏲",
+            "sec",
+            { it.toDoubleOrNull()?.div(3600.0) },
+            { v -> (v * 3600).roundToInt().toString() })
     )
 
     data class UnitCard(var unitKey: String, var value: String)
@@ -82,45 +124,40 @@ fun TimeConversionScreen(
     var unitCards by remember {
         mutableStateOf(
             listOf(
-                UnitCard("std", "1:30"),
-                UnitCard("dec", "1.5")
+                UnitCard("std", "1:00"),
+                UnitCard("dec", "1.0")
             )
         )
     }
     var isRestored by remember { mutableStateOf(false) }
 
+    // Restore persisted cards
     LaunchedEffect(Unit) {
-        val prefs = context.timeUnitCardsDataStore.data.first()
-        val cardsString = prefs[TIME_UNIT_CARDS_KEY]
-        if (cardsString != null) {
-            try {
-                val persisted: List<PersistedTimeUnitCard> = Json.decodeFromString(cardsString)
-                unitCards = persisted.map { UnitCard(it.unitKey, it.value) }
-            } catch (_: Exception) {
-            }
+        val prefs = context.timeCardsStore.data.first()
+        prefs[TIME_CARDS_KEY]?.let {
+            runCatching { Json.decodeFromString<List<PersistedTimeCard>>(it) }.getOrNull()
+                ?.let { list ->
+                    unitCards = list.map { UnitCard(it.unitKey, it.value) }
+                }
         }
         isRestored = true
     }
 
-    fun persistCards(newList: List<UnitCard>) {
+    fun persistCards(list: List<UnitCard>) {
         scope.launch {
-            context.timeUnitCardsDataStore.edit { prefs ->
-                prefs[TIME_UNIT_CARDS_KEY] =
-                    Json.encodeToString(newList.map {
-                        PersistedTimeUnitCard(
-                            it.unitKey,
-                            it.value
-                        )
-                    })
+            context.timeCardsStore.edit {
+                it[TIME_CARDS_KEY] =
+                    Json.encodeToString(list.map { c -> PersistedTimeCard(c.unitKey, c.value) })
             }
         }
     }
 
-    fun setUnitCards(newList: List<UnitCard>) {
-        unitCards = newList
-        persistCards(newList)
+    fun setUnitCards(list: List<UnitCard>) {
+        unitCards = list
+        persistCards(list)
     }
 
+    // Drag handling state
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffsetY by remember { mutableStateOf(0f) }
 
@@ -136,21 +173,11 @@ fun TimeConversionScreen(
     fun recalcAll(fromIdx: Int, text: String) {
         val fromCard = unitCards.getOrNull(fromIdx) ?: return
         val fromDef = unitDefs.first { it.key == fromCard.unitKey }
-        val fromValue = if (fromCard.unitKey == "std") {
-            standardTimeToDecimal(text) ?: return
-        } else {
-            text.toDoubleOrNull() ?: return
-        }
-        val base = fromDef.toBase(fromValue)
+        val base = fromDef.toBase(text) ?: return
         setUnitCards(unitCards.mapIndexed { idx, card ->
             val def = unitDefs.first { it.key == card.unitKey }
             if (idx == fromIdx) card.copy(value = text)
-            else card.copy(
-                value = if (text.isBlank()) "" else formatValue(
-                    def.fromBase(base),
-                    def.key
-                )
-            )
+            else card.copy(value = if (text.isBlank()) "" else def.fromBase(base))
         })
     }
 
@@ -161,20 +188,17 @@ fun TimeConversionScreen(
         val newKey = unused.first()
         val card = if (baseIdx != -1) {
             val baseCard = unitCards[baseIdx]
-            val baseValue = if (baseCard.unitKey == "std") {
-                standardTimeToDecimal(baseCard.value) ?: 0.0
-            } else {
-                baseCard.value.toDoubleOrNull() ?: 0.0
-            }
             val baseDef = unitDefs.first { it.key == baseCard.unitKey }
-            val base = baseDef.toBase(baseValue)
+            val base = baseDef.toBase(baseCard.value) ?: 0.0
             val def = unitDefs.first { it.key == newKey }
-            UnitCard(
-                newKey,
-                if (baseCard.value.isBlank()) "" else formatValue(def.fromBase(base), def.key)
-            )
+            UnitCard(newKey, if (baseCard.value.isBlank()) "" else def.fromBase(base))
         } else UnitCard(newKey, "")
         setUnitCards(unitCards + card)
+        val idxToUpdate = unitCards.indexOfFirst { it.value.isNotBlank() }
+        if (idxToUpdate != -1) {
+            val text = unitCards[idxToUpdate].value
+            recalcAll(idxToUpdate, text)
+        }
     }
 
     fun removeCard(idx: Int) {
@@ -189,20 +213,21 @@ fun TimeConversionScreen(
         })
     }
 
+    // Unit picker state
     var showUnitPicker by remember { mutableStateOf(false) }
     var unitSearch by remember { mutableStateOf("") }
     var activeUnitPickerIdx by remember { mutableStateOf<Int?>(null) }
     var activeUnitSearch by remember { mutableStateOf("") }
     val availableUnits = unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } }
 
-    // Info dialog for time conversion help
+    // Info dialog
     if (showInfo) {
         AlertDialog(
             onDismissRequest = { onInfoDismiss?.invoke() },
             title = { Text("Time Conversion Tool") },
             text = {
                 Text(
-                    "Convert between different time formats used in aviation.\n\n" +
+                    "Convert between time formats commonly used in aviation.\n\n" +
                             "• Enter a value in any time unit field\n" +
                             "• All other units update automatically\n" +
                             "• Drag cards using the menu icon to reorder\n" +
@@ -210,9 +235,10 @@ fun TimeConversionScreen(
                             "• Click unit names to change the unit type\n" +
                             "• Add more units using the + button\n\n" +
                             "Aviation Time References:\n" +
-                            "• Standard Time (HH:MM) - Flight time format\n" +
-                            "• Decimal Hours - Aviation calculations\n" +
-                            "• Total Minutes/Seconds - Duration calculations"
+                            "• HH:MM - Standard flight time format\n" +
+                            "• Decimal Hours - Fuel calculations\n" +
+                            "• Minutes - Short duration measurements\n" +
+                            "• Seconds - Precise timing calculations"
                 )
             },
             confirmButton = {
@@ -223,6 +249,7 @@ fun TimeConversionScreen(
         )
     }
 
+    // Auto-convert when cards are added
     LaunchedEffect(unitCards.size) {
         if (unitCards.size > 2) {
             val idxToUpdate = unitCards.indexOfFirst { it.value.isNotBlank() }
@@ -242,8 +269,8 @@ fun TimeConversionScreen(
         ) {
             Spacer(Modifier.height(11.dp))
             Icon(
-                imageVector = Icons.Filled.AccessTime,
-                contentDescription = null,
+                Icons.Filled.AccessTime,
+                null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(38.dp)
             )
@@ -272,11 +299,13 @@ fun TimeConversionScreen(
                     var actuallyDeleting by remember { mutableStateOf(false) }
                     val dragProgress = (swipeOffset / trashRevealOffset).coerceIn(0f, 1f)
                     val canDelete = unitCards.size > 2
+
                     Box(
                         Modifier
                             .fillMaxWidth()
                             .heightIn(min = 64.dp)
                     ) {
+                        // Trash icon background
                         if (canDelete && (cardOpen || swipeOffset > 4f)) {
                             Box(
                                 Modifier
@@ -296,7 +325,7 @@ fun TimeConversionScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        Icons.Default.Delete,
+                                        imageVector = Icons.Default.Delete,
                                         contentDescription = "Remove",
                                         tint = MaterialTheme.colorScheme.error.copy(
                                             alpha = 0.7f + 0.3f * dragProgress
@@ -314,6 +343,7 @@ fun TimeConversionScreen(
                                 }
                             }
                         }
+
                         Card(
                             Modifier
                                 .fillMaxWidth()
@@ -383,6 +413,7 @@ fun TimeConversionScreen(
                                     .heightIn(min = 64.dp)
                                     .padding(horizontal = 10.dp, vertical = 6.dp)
                             ) {
+                                // Drag handle
                                 Box(
                                     Modifier
                                         .padding(start = 5.dp)
@@ -421,9 +452,11 @@ fun TimeConversionScreen(
                                         modifier = Modifier.size(28.dp)
                                     )
                                 }
+
+                                // Unit label with dropdown
                                 Column(
                                     Modifier
-                                        .weight(2.2f)
+                                        .weight(1.8f)
                                         .padding(start = 12.dp, end = 2.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -451,6 +484,8 @@ fun TimeConversionScreen(
                                         )
                                     }
                                 }
+
+                                // Value field and unit abbreviation
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.End
@@ -459,9 +494,12 @@ fun TimeConversionScreen(
                                     LaunchedEffect(card.value) {
                                         if (card.value != fieldValue) fieldValue = card.value
                                     }
+                                    val clipboardManager = LocalClipboardManager.current
+                                    val hapticFeedback = LocalHapticFeedback.current
+
                                     Box(
                                         Modifier
-                                            .fillMaxWidth(0.46f)
+                                            .fillMaxWidth(0.54f)
                                             .height(56.dp)
                                     ) {
                                         Row(
@@ -481,7 +519,20 @@ fun TimeConversionScreen(
                                                 maxLines = 1,
                                                 modifier = Modifier
                                                     .weight(1f)
-                                                    .fillMaxHeight(),
+                                                    .fillMaxHeight()
+                                                    .combinedClickable(
+                                                        onLongClick = {
+                                                            if (fieldValue.isNotEmpty()) {
+                                                                clipboardManager.setText(
+                                                                    AnnotatedString(fieldValue)
+                                                                )
+                                                                hapticFeedback.performHapticFeedback(
+                                                                    HapticFeedbackType.LongPress
+                                                                )
+                                                            }
+                                                        },
+                                                        onClick = { /* Normal click handled by TextField */ }
+                                                    ),
                                                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                                                     textAlign = TextAlign.End,
                                                     fontWeight = FontWeight.Medium
@@ -509,6 +560,8 @@ fun TimeConversionScreen(
                                 }
                             }
                         }
+
+                        // Unit picker dialog for specific card
                         if (activeUnitPickerIdx == idx) {
                             val availableUnits =
                                 unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } || def.key == card.unitKey }
@@ -570,6 +623,8 @@ fun TimeConversionScreen(
                         }
                     }
                 }
+
+                // Drag hint
                 item {
                     Row(
                         Modifier
@@ -589,6 +644,8 @@ fun TimeConversionScreen(
                         )
                     }
                 }
+
+                // Add unit button
                 if (availableUnits.isNotEmpty()) {
                     item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
@@ -607,6 +664,8 @@ fun TimeConversionScreen(
             }
         }
     }
+
+    // Add unit picker dialog (for + button)
     if (showUnitPicker) {
         val availableUnits = unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } }
         AlertDialog(
@@ -625,7 +684,7 @@ fun TimeConversionScreen(
                     val filtered =
                         availableUnits.filter { it.label.contains(unitSearch, ignoreCase = true) }
                     LazyColumn(Modifier.heightIn(max = 350.dp)) {
-                        itemsIndexed(filtered) { i, u ->
+                        itemsIndexed(filtered) { _, u ->
                             Row(
                                 Modifier
                                     .fillMaxWidth()
@@ -655,73 +714,5 @@ fun TimeConversionScreen(
                 TextButton(onClick = { showUnitPicker = false }) { Text("Cancel") }
             }
         )
-    }
-}
-
-// Helper functions for time calculations
-private fun standardTimeToDecimal(time: String): Double? {
-    try {
-        val parts = time.split(":")
-        if (parts.size != 2) return null
-        val hours = parts[0].toIntOrNull() ?: return null
-        val minutes = parts[1].toIntOrNull() ?: return null
-        if (minutes >= 60) return null
-
-        // Aviation decimal time conversion table
-        val decimalMinutes = when (minutes) {
-            in 0..2 -> 0.0
-            in 3..8 -> 0.1
-            in 9..14 -> 0.2
-            in 15..20 -> 0.3
-            in 21..26 -> 0.4
-            in 27..32 -> 0.5
-            in 33..38 -> 0.6
-            in 39..44 -> 0.7
-            in 45..50 -> 0.8
-            in 51..56 -> 0.9
-            in 57..59 -> 1.0
-            else -> 0.0
-        }
-
-        return hours + decimalMinutes
-    } catch (e: Exception) {
-        return null
-    }
-}
-
-private fun decimalToStandardTimeValue(decimal: Double): Double {
-    val hours = decimal.toInt()
-    val decimalPart = decimal - hours
-
-    val minutes = when (decimalPart) {
-        0.0 -> 0
-        0.1 -> 6
-        0.2 -> 12
-        0.3 -> 18
-        0.4 -> 24
-        0.5 -> 30
-        0.6 -> 36
-        0.7 -> 42
-        0.8 -> 48
-        0.9 -> 54
-        1.0 -> 59
-        else -> ((decimalPart * 60).toInt())
-    }
-
-    return hours + minutes / 100.0 // Return as a parseable number for the field
-}
-
-private fun formatValue(value: Double, unitKey: String): String {
-    return when (unitKey) {
-        "std" -> {
-            val hours = value.toInt()
-            val minutes = ((value - hours) * 100).toInt()
-            String.format("%d:%02d", hours, minutes)
-        }
-
-        "dec" -> "%.2f".format(value)
-        "min" -> value.toInt().toString()
-        "sec" -> value.toInt().toString()
-        else -> "%.2f".format(value)
     }
 }

@@ -72,6 +72,12 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 
 @Serializable
 data class PersistedUnitCard(val unitKey: String, val value: String)
@@ -87,6 +93,7 @@ fun Double.roundMost(): String {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun WeightConversionScreen(
     themeController: ThemeController,
@@ -510,7 +517,7 @@ fun WeightConversionScreen(
                                 }
                                 Column(
                                     Modifier
-                                        .weight(2.2f)
+                                        .weight(1.8f)
                                         .padding(start = 12.dp, end = 2.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -545,7 +552,7 @@ fun WeightConversionScreen(
                                 ) {
                                     Box(
                                         Modifier
-                                            .fillMaxWidth(0.46f)
+                                            .fillMaxWidth(0.54f)
                                             .height(56.dp)
                                     ) {
                                         Row(
@@ -564,6 +571,8 @@ fun WeightConversionScreen(
                                                 if (card.value != fieldValue) fieldValue =
                                                     card.value
                                             }
+                                            val clipboardManager = LocalClipboardManager.current
+                                            val hapticFeedback = LocalHapticFeedback.current
                                             OutlinedTextField(
                                                 value = fieldValue,
                                                 onValueChange = {
@@ -577,7 +586,20 @@ fun WeightConversionScreen(
                                                 maxLines = 1,
                                                 modifier = Modifier
                                                     .weight(1f)
-                                                    .fillMaxHeight(),
+                                                    .fillMaxHeight()
+                                                    .combinedClickable(
+                                                        onLongClick = {
+                                                            if (fieldValue.isNotEmpty()) {
+                                                                clipboardManager.setText(
+                                                                    AnnotatedString(fieldValue)
+                                                                )
+                                                                hapticFeedback.performHapticFeedback(
+                                                                    HapticFeedbackType.LongPress
+                                                                )
+                                                            }
+                                                        },
+                                                        onClick = { /* Normal click handled by TextField */ }
+                                                    ),
                                                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                                                     textAlign = TextAlign.End,
                                                     fontWeight = FontWeight.Medium

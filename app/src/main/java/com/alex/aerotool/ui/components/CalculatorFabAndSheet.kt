@@ -567,7 +567,7 @@ private fun CalculatorContent(
 
                                     // Special handling for button weights
                                     val buttonWeight = when {
-                                        key == "0_wide" -> 3f + (2 * 8.dp.value / 64.dp.value) // 3 columns + 2 gaps
+                                        key == "0_wide" -> 3f // Wide 0 button takes 3 columns worth of space
                                         else -> 1f
                                     }
 

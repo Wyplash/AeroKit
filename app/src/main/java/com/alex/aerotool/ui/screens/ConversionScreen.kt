@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Compress
+import androidx.compose.material.icons.outlined.CropFree
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.FitnessCenter
 import androidx.compose.material.icons.outlined.LocalGasStation
@@ -76,6 +77,10 @@ fun ConversionScreen(
             label = "Length/Distance"
         ),
         ConversionCategory(
+            icon = Icons.Outlined.CropFree,
+            label = "Area"
+        ),
+        ConversionCategory(
             icon = Icons.Outlined.FitnessCenter,
             label = "Weight"
         ),
@@ -109,6 +114,7 @@ fun ConversionScreen(
     var showTempInfo by remember { mutableStateOf(false) }
     var showSpeedInfo by remember { mutableStateOf(false) }
     var showLengthInfo by remember { mutableStateOf(false) }
+    var showAreaInfo by remember { mutableStateOf(false) }
     var showWeightInfo by remember { mutableStateOf(false) }
     var showVolumeInfo by remember { mutableStateOf(false) }
     var showGeoInfo by remember { mutableStateOf(false) }
@@ -134,6 +140,7 @@ fun ConversionScreen(
                             "Speed" -> showSpeedInfo = true
                             "Temperature" -> showTempInfo = true
                             "Length/Distance" -> showLengthInfo = true
+                            "Area" -> showAreaInfo = true
                             "Weight" -> showWeightInfo = true
                             "Volume" -> showVolumeInfo = true
                             "Geo Coordinate" -> showGeoInfo = true
@@ -166,6 +173,13 @@ fun ConversionScreen(
                     onBack = { selectedCategory = null },
                     showInfo = showLengthInfo,
                     onInfoDismiss = { showLengthInfo = false }
+                )
+
+                "Area" -> AreaConversionScreen(
+                    themeController = themeController,
+                    onBack = { selectedCategory = null },
+                    showInfo = showAreaInfo,
+                    onInfoDismiss = { showAreaInfo = false }
                 )
 
                 "Weight" -> WeightConversionScreen(
@@ -218,7 +232,7 @@ fun ConversionScreen(
                 )
 
                 else -> LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
+                    columns = GridCells.Adaptive(minSize = 100.dp),
                     modifier = Modifier
                         .padding(16.dp)
                         .fillMaxWidth(),

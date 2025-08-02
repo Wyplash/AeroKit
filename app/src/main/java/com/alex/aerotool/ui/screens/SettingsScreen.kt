@@ -26,11 +26,14 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.RadioButton
 import com.alex.aerotool.ui.theme.Aircraft
 import androidx.compose.material3.IconButton
+import androidx.compose.ui.text.style.TextAlign
 
 @Composable
 fun SettingsScreen(
     themeController: ThemeController,
-    clearCustomAbbreviations: (() -> Unit)? = null
+    clearCustomAbbreviations: (() -> Unit)? = null,
+    showAircraftManagerInitially: Boolean = false,
+    onAircraftManagerDismissed: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -42,6 +45,10 @@ fun SettingsScreen(
     var crosswindLimitInput by remember { mutableStateOf("") }
     var editingAircraft by remember { mutableStateOf<Aircraft?>(null) }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showAircraftManagerInitially) {
+        if (showAircraftManagerInitially) showAircraftManager = true
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         AeroTopBar(
@@ -101,6 +108,47 @@ fun SettingsScreen(
             )
             Spacer(Modifier.height(24.dp))
 
+            // Decimal Precision selector
+            Text("Decimal Precision", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Number of decimal places shown in conversion results",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(8.dp))
+
+            var precisionExpanded by remember { mutableStateOf(false) }
+            OutlinedButton(
+                onClick = { precisionExpanded = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("${themeController.decimalPrecision} decimal places")
+            }
+            DropdownMenu(
+                expanded = precisionExpanded,
+                onDismissRequest = { precisionExpanded = false }
+            ) {
+                (0..6).forEach { precision ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                when (precision) {
+                                    0 -> "0 decimal places (whole numbers)"
+                                    1 -> "1 decimal place"
+                                    else -> "$precision decimal places"
+                                }
+                            )
+                        },
+                        onClick = {
+                            themeController.updateDecimalPrecision(precision)
+                            precisionExpanded = false
+                        }
+                    )
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+
             Divider()
             Spacer(Modifier.height(20.dp))
 
@@ -155,38 +203,50 @@ fun SettingsScreen(
 
     if (showAircraftManager) {
         AlertDialog(
-            onDismissRequest = { showAircraftManager = false },
+            onDismissRequest = { showAircraftManager = false; onAircraftManagerDismissed() },
             title = { Text("Aircraft Crosswind Limits") },
             text = {
                 Column {
-                    themeController.aircraftList.forEach { aircraft ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(aircraft.name, modifier = Modifier.weight(1f))
-                            Text(
-                                "${aircraft.crosswindLimit} kt",
-                                modifier = Modifier.padding(end = 8.dp)
-                            )
-                            IconButton(onClick = {
-                                isEditMode = true
-                                editingAircraft = aircraft
-                                aircraftNameInput = aircraft.name
-                                crosswindLimitInput = aircraft.crosswindLimit.toString()
-                                showAircraftDialog = true
-                            }) {
-                                Icon(Icons.Default.Edit, contentDescription = "Edit")
-                            }
-                            IconButton(onClick = {
-                                themeController.deleteAircraft(aircraft)
-                                if (themeController.defaultAircraft == aircraft) {
-                                    themeController.aircraftList.firstOrNull()?.let {
-                                        themeController.setDefaultAircraft(it)
-                                    }
+                    if (themeController.aircraftList.isEmpty()) {
+                        Text(
+                            text = "No aircraft profiles found. Tap \"Add Aircraft\" below to create one.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .padding(vertical = 12.dp)
+                                .fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                    } else {
+                        themeController.aircraftList.forEach { aircraft ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(aircraft.name, modifier = Modifier.weight(1f))
+                                Text(
+                                    "${aircraft.crosswindLimit} kt",
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                                IconButton(onClick = {
+                                    isEditMode = true
+                                    editingAircraft = aircraft
+                                    aircraftNameInput = aircraft.name
+                                    crosswindLimitInput = aircraft.crosswindLimit.toString()
+                                    showAircraftDialog = true
+                                }) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Edit")
                                 }
-                            }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete")
+                                IconButton(onClick = {
+                                    themeController.deleteAircraft(aircraft)
+                                    if (themeController.defaultAircraft == aircraft) {
+                                        themeController.aircraftList.firstOrNull()?.let {
+                                            themeController.setDefaultAircraft(it)
+                                        }
+                                    }
+                                }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete")
+                                }
                             }
                         }
                     }
@@ -202,7 +262,9 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showAircraftManager = false }) {
+                TextButton(onClick = {
+                    showAircraftManager = false; onAircraftManagerDismissed()
+                }) {
                     Text("Done")
                 }
             }

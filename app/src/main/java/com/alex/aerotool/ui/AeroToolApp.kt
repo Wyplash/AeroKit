@@ -68,6 +68,9 @@ fun AeroToolApp() {
         customAbbreviations = emptyList()
     }
 
+    // --------- Deep-link state for opening aircraft manager ---------
+    var showAircraftManagerOnSettingsLoad by remember { mutableStateOf(false) }
+
     // --------- Calculator state for persistence across screens ---------
     var calculatorExpression by remember { mutableStateOf("") }
     var calculatorResult by remember { mutableStateOf("") }
@@ -138,7 +141,11 @@ fun AeroToolApp() {
                             setCustomAbbreviations = { customAbbreviations = it },
                             calculatorExpression = calculatorExpression,
                             calculatorResult = calculatorResult,
-                            setCalculatorState = ::setCalculatorState
+                            setCalculatorState = ::setCalculatorState,
+                            onShowAircraftManager = {
+                                bottomTab = 2
+                                showAircraftManagerOnSettingsLoad = true
+                            }
                         )
                         1 -> ConversionScreen(
                             themeController = themeController,
@@ -148,7 +155,11 @@ fun AeroToolApp() {
                         )
                         2 -> SettingsScreen(
                             themeController = themeController,
-                            clearCustomAbbreviations = { clearCustomAbbreviations() }
+                            clearCustomAbbreviations = { clearCustomAbbreviations() },
+                            showAircraftManagerInitially = showAircraftManagerOnSettingsLoad,
+                            onAircraftManagerDismissed = {
+                                showAircraftManagerOnSettingsLoad = false
+                            }
                         )
                     }
                 }

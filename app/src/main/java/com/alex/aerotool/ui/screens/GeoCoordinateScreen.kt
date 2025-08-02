@@ -654,4 +654,7 @@ fun GeoCoordinateScreen(
     }
 }
 
-private fun Double.round(n: Int): String = "%.${n}f".format(this)
+private fun Double.round(n: Int): String {
+    val precision = n.coerceIn(0, 9)
+    return "%.${precision}f".format(this)
+}

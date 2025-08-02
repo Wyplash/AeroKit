@@ -44,6 +44,12 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlin.collections.map
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.AnnotatedString
 
 @Serializable
 data class PersistedPressureUnitCard(val unitKey: String, val value: String)
@@ -51,6 +57,7 @@ data class PersistedPressureUnitCard(val unitKey: String, val value: String)
 val Context.pressureUnitCardsDataStore by preferencesDataStore("pressure_unit_cards")
 val PRESSURE_UNIT_CARDS_KEY = stringPreferencesKey("pressure_unit_cards")
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PressureConversionScreen(
     themeController: ThemeController,
@@ -67,7 +74,10 @@ fun PressureConversionScreen(
         val fromBase: (Double) -> Double, // convert from hPa
     )
 
-    fun Double.roundPressure(n: Int = 4): String = "%.${n}f".format(this)
+    fun Double.roundPressure(n: Int = 4): String {
+        val precision = n.coerceIn(0, 9)
+        return "%.${precision}f".format(this)
+    }
 
     val unitDefs = listOf(
         UnitDef("hpa", "Hectopascal", "🌡️", "hPa", { it }, { it }),
@@ -91,6 +101,8 @@ fun PressureConversionScreen(
     var isRestored by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val clipboardManager = LocalClipboardManager.current
+    val hapticFeedback = LocalHapticFeedback.current
 
     LaunchedEffect(Unit) {
         val prefs = context.pressureUnitCardsDataStore.data.first()
@@ -144,7 +156,10 @@ fun PressureConversionScreen(
         setUnitCards(unitCards.mapIndexed { idx, card ->
             val def = unitDefs.first { it.key == card.unitKey }
             if (idx == fromIdx) card.copy(value = text)
-            else card.copy(value = if (text.isBlank()) "" else def.fromBase(base).roundPressure(4))
+            else card.copy(
+                value = if (text.isBlank()) "" else def.fromBase(base)
+                    .roundPressure(themeController.decimalPrecision)
+            )
         })
     }
 
@@ -161,7 +176,8 @@ fun PressureConversionScreen(
             val def = unitDefs.first { it.key == newKey }
             UnitCard(
                 newKey,
-                if (baseCard.value.isBlank()) "" else def.fromBase(base).roundPressure(4)
+                if (baseCard.value.isBlank()) "" else def.fromBase(base)
+                    .roundPressure(themeController.decimalPrecision)
             )
         } else UnitCard(newKey, "")
         setUnitCards(unitCards + card)
@@ -421,7 +437,7 @@ fun PressureConversionScreen(
                                 }
                                 Column(
                                     Modifier
-                                        .weight(2.2f)
+                                        .weight(1.8f)
                                         .padding(start = 12.dp, end = 2.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -459,7 +475,7 @@ fun PressureConversionScreen(
                                     }
                                     Box(
                                         Modifier
-                                            .fillMaxWidth(0.46f)
+                                            .fillMaxWidth(0.54f)
                                             .height(56.dp)
                                     ) {
                                         Row(
@@ -479,7 +495,20 @@ fun PressureConversionScreen(
                                                 maxLines = 1,
                                                 modifier = Modifier
                                                     .weight(1f)
-                                                    .fillMaxHeight(),
+                                                    .fillMaxHeight()
+                                                    .combinedClickable(
+                                                        onLongClick = {
+                                                            if (fieldValue.isNotEmpty()) {
+                                                                clipboardManager.setText(
+                                                                    AnnotatedString(fieldValue)
+                                                                )
+                                                                hapticFeedback.performHapticFeedback(
+                                                                    HapticFeedbackType.LongPress
+                                                                )
+                                                            }
+                                                        },
+                                                        onClick = { /* default textfield click */ }
+                                                    ),
                                                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                                                     textAlign = TextAlign.End,
                                                     fontWeight = FontWeight.Medium

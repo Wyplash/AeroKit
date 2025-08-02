@@ -59,7 +59,8 @@ fun ToolsScreen(
     setCustomAbbreviations: (List<AbbreviationItem>) -> Unit,
     calculatorExpression: String,
     calculatorResult: String,
-    setCalculatorState: (String, String) -> Unit
+    setCalculatorState: (String, String) -> Unit,
+    onShowAircraftManager: () -> Unit
 ) {
     Box(Modifier.fillMaxSize()) {
         var selectedTool by remember { mutableStateOf<Int?>(null) }
@@ -159,7 +160,8 @@ fun ToolsScreen(
             when (selectedTool) {
                 0 -> WindComponentScreen(
                     themeController = themeController,
-                    onBack = { selectedTool = null }
+                    onBack = { selectedTool = null },
+                    onShowAircraftManager = onShowAircraftManager
                 )
 
                 1 -> RadioRangeScreen(

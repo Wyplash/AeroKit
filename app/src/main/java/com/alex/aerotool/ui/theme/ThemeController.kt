@@ -39,6 +39,7 @@ class ThemeController(
     private val context: Context
 ) {
     var language by mutableStateOf(initialLanguage)
+    var decimalPrecision by mutableStateOf(2) // Default 2 decimal places
 
     // WindComponent persistent fields
     var runwayInput by mutableStateOf("")
@@ -53,6 +54,7 @@ class ThemeController(
 
     private val AIRCRAFT_LIST_KEY = stringPreferencesKey("aircraft_list")
     private val DEFAULT_AIRCRAFT_KEY = stringPreferencesKey("default_aircraft")
+    private val DECIMAL_PRECISION_KEY = intPreferencesKey("decimal_precision")
 
     // Call this on init
     suspend fun loadAircraftPrefs() {
@@ -63,12 +65,16 @@ class ThemeController(
         aircraftList.addAll(loadedAircraft)
         val defaultName = prefs[DEFAULT_AIRCRAFT_KEY]
         _defaultAircraft = aircraftList.find { it.name == defaultName }
+
+        // Load decimal precision
+        decimalPrecision = prefs[DECIMAL_PRECISION_KEY] ?: 2
     }
 
     suspend fun saveAircraftPrefs() {
         context.dataStore.edit { prefs ->
             prefs[AIRCRAFT_LIST_KEY] = Json.encodeToString(aircraftList.toList())
             prefs[DEFAULT_AIRCRAFT_KEY] = _defaultAircraft?.name ?: ""
+            prefs[DECIMAL_PRECISION_KEY] = decimalPrecision
         }
     }
 
@@ -100,5 +106,10 @@ class ThemeController(
         CoroutineScope(Dispatchers.IO).launch {
             languagePreference.setLanguage(newLanguage)
         }
+    }
+
+    fun updateDecimalPrecision(precision: Int) {
+        decimalPrecision = precision.coerceIn(0, 8) // Limit to 0-8 decimal places
+        CoroutineScope(Dispatchers.IO).launch { saveAircraftPrefs() }
     }
 }

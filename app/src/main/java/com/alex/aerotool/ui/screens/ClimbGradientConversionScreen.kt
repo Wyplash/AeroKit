@@ -40,6 +40,12 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.AnnotatedString
 
 @Serializable
 data class PersistedClimbUnitCard(val unitKey: String, val value: String)
@@ -47,6 +53,7 @@ data class PersistedClimbUnitCard(val unitKey: String, val value: String)
 val Context.climbUnitCardsDataStore by preferencesDataStore("climb_unit_cards")
 val CLIMB_UNIT_CARDS_KEY = stringPreferencesKey("climb_unit_cards")
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ClimbGradientConversionScreen(
     themeController: ThemeController,
@@ -243,6 +250,9 @@ fun ClimbGradientConversionScreen(
             recalcAll(idxToUpdate, text)
         }
     }
+
+    val clipboardManager = LocalClipboardManager.current
+    val hapticFeedback = LocalHapticFeedback.current
 
     Box(Modifier.fillMaxSize()) {
         Column(
@@ -502,7 +512,7 @@ fun ClimbGradientConversionScreen(
                                 }
                                 Column(
                                     Modifier
-                                        .weight(2.2f)
+                                        .weight(1.8f)
                                         .padding(start = 12.dp, end = 2.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -540,7 +550,7 @@ fun ClimbGradientConversionScreen(
                                     }
                                     Box(
                                         Modifier
-                                            .fillMaxWidth(0.46f)
+                                            .fillMaxWidth(0.54f)
                                             .height(56.dp)
                                     ) {
                                         Row(
@@ -560,7 +570,20 @@ fun ClimbGradientConversionScreen(
                                                 maxLines = 1,
                                                 modifier = Modifier
                                                     .weight(1f)
-                                                    .fillMaxHeight(),
+                                                    .fillMaxHeight()
+                                                    .combinedClickable(
+                                                        onLongClick = {
+                                                            if (fieldValue.isNotEmpty()) {
+                                                                clipboardManager.setText(
+                                                                    AnnotatedString(fieldValue)
+                                                                )
+                                                                hapticFeedback.performHapticFeedback(
+                                                                    HapticFeedbackType.LongPress
+                                                                )
+                                                            }
+                                                        },
+                                                        onClick = { /* normal click */ }
+                                                    ),
                                                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                                                     textAlign = TextAlign.End,
                                                     fontWeight = FontWeight.Medium

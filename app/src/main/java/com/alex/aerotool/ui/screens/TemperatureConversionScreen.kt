@@ -43,6 +43,12 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 
 @Serializable
 data class PersistedTemperatureUnitCard(val unitKey: String, val value: String)
@@ -50,6 +56,7 @@ data class PersistedTemperatureUnitCard(val unitKey: String, val value: String)
 val Context.temperatureUnitCardsDataStore by preferencesDataStore("temperature_unit_cards")
 val TEMPERATURE_UNIT_CARDS_KEY = stringPreferencesKey("temperature_unit_cards")
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TemperatureConversionScreen(
     themeController: ThemeController,
@@ -146,7 +153,10 @@ fun TemperatureConversionScreen(
         val newCards = unitCards.mapIndexed { idx, card ->
             val def = unitDefs.first { it.key == card.unitKey }
             if (idx == fromIdx) card.copy(value = text)
-            else card.copy(value = if (text.isBlank()) "" else def.fromBase(base).roundMostTemp(2))
+            else card.copy(
+                value = if (text.isBlank()) "" else def.fromBase(base)
+                    .roundMostTemp(themeController.decimalPrecision)
+            )
         }
         setUnitCards(newCards)
     }
@@ -164,7 +174,8 @@ fun TemperatureConversionScreen(
             val def = unitDefs.first { it.key == newKey }
             UnitCard(
                 newKey,
-                if (baseCard.value.isBlank()) "" else def.fromBase(base).roundMostTemp(2)
+                if (baseCard.value.isBlank()) "" else def.fromBase(base)
+                    .roundMostTemp(themeController.decimalPrecision)
             )
         } else UnitCard(newKey, "")
         val newCards = unitCards + card
@@ -178,7 +189,10 @@ fun TemperatureConversionScreen(
             val finalCards = newCards.mapIndexed { idx, c ->
                 val def = unitDefs.first { it.key == c.unitKey }
                 if (idx == idxToUpdate) c.copy(value = text)
-                else c.copy(value = if (text.isBlank()) "" else def.fromBase(base).roundMostTemp(2))
+                else c.copy(
+                    value = if (text.isBlank()) "" else def.fromBase(base)
+                        .roundMostTemp(themeController.decimalPrecision)
+                )
             }
             setUnitCards(finalCards)
         } else {
@@ -205,6 +219,9 @@ fun TemperatureConversionScreen(
     var activeUnitPickerIdx by remember { mutableStateOf<Int?>(null) }
     var activeUnitSearch by remember { mutableStateOf("") }
     val availableUnits = unitDefs.filter { def -> unitCards.none { it.unitKey == def.key } }
+
+    val clipboardManager = LocalClipboardManager.current
+    val hapticFeedback = LocalHapticFeedback.current
 
     // Info dialog for temperature conversion help
     if (showInfo) {
@@ -427,7 +444,7 @@ fun TemperatureConversionScreen(
                                 }
                                 Column(
                                     Modifier
-                                        .weight(2.2f)
+                                        .weight(1.8f)
                                         .padding(start = 12.dp, end = 2.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -465,7 +482,7 @@ fun TemperatureConversionScreen(
                                     }
                                     Box(
                                         Modifier
-                                            .fillMaxWidth(0.46f)
+                                            .fillMaxWidth(0.54f)
                                             .height(56.dp)
                                     ) {
                                         Row(
@@ -487,7 +504,20 @@ fun TemperatureConversionScreen(
                                                 maxLines = 1,
                                                 modifier = Modifier
                                                     .weight(1f)
-                                                    .fillMaxHeight(),
+                                                    .fillMaxHeight()
+                                                    .combinedClickable(
+                                                        onLongClick = {
+                                                            if (fieldValue.isNotEmpty()) {
+                                                                clipboardManager.setText(
+                                                                    AnnotatedString(fieldValue)
+                                                                )
+                                                                hapticFeedback.performHapticFeedback(
+                                                                    HapticFeedbackType.LongPress
+                                                                )
+                                                            }
+                                                        },
+                                                        onClick = { /* default textfield click */ }
+                                                    ),
                                                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                                                     textAlign = TextAlign.End,
                                                     fontWeight = FontWeight.Medium
@@ -676,4 +706,7 @@ fun TemperatureConversionScreen(
     }
 }
 
-fun Double.roundMostTemp(n: Int = 2): String = "%.${n}f".format(this)
+fun Double.roundMostTemp(n: Int = 2): String {
+    val precision = n.coerceIn(0, 9)
+    return "%.${precision}f".format(this)
+}

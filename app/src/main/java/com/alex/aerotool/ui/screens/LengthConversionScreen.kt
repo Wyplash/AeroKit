@@ -43,6 +43,12 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 
 @Serializable
 data class PersistedLengthUnitCard(val unitKey: String, val value: String)
@@ -50,8 +56,12 @@ data class PersistedLengthUnitCard(val unitKey: String, val value: String)
 val Context.lengthUnitCardsDataStore by preferencesDataStore("length_unit_cards")
 val LENGTH_UNIT_CARDS_KEY = stringPreferencesKey("length_unit_cards")
 
-fun Double.roundMostLen(n: Int = 6): String = "%.${n}f".format(this)
+fun Double.roundMostLen(n: Int = 6): String {
+    val precision = n.coerceIn(0, 9)
+    return "%.${precision}f".format(this)
+}
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LengthConversionScreen(
     themeController: ThemeController,
@@ -144,7 +154,10 @@ fun LengthConversionScreen(
         setUnitCards(unitCards.mapIndexed { idx, card ->
             val def = unitDefs.first { it.key == card.unitKey }
             if (idx == fromIdx) card.copy(value = text)
-            else card.copy(value = if (text.isBlank()) "" else def.fromBase(base).roundMostLen(6))
+            else card.copy(
+                value = if (text.isBlank()) "" else def.fromBase(base)
+                    .roundMostLen(themeController.decimalPrecision)
+            )
         })
     }
 
@@ -161,7 +174,8 @@ fun LengthConversionScreen(
             val def = unitDefs.first { it.key == newKey }
             UnitCard(
                 newKey,
-                if (baseCard.value.isBlank()) "" else def.fromBase(base).roundMostLen(6)
+                if (baseCard.value.isBlank()) "" else def.fromBase(base)
+                    .roundMostLen(themeController.decimalPrecision)
             )
         } else UnitCard(newKey, "")
         setUnitCards(unitCards + card)
@@ -420,7 +434,7 @@ fun LengthConversionScreen(
                                 }
                                 Column(
                                     Modifier
-                                        .weight(2.2f)
+                                        .weight(1.8f)
                                         .padding(start = 12.dp, end = 2.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -456,9 +470,11 @@ fun LengthConversionScreen(
                                     LaunchedEffect(card.value) {
                                         if (card.value != fieldValue) fieldValue = card.value
                                     }
+                                    val clipboardManager = LocalClipboardManager.current
+                                    val hapticFeedback = LocalHapticFeedback.current
                                     Box(
                                         Modifier
-                                            .fillMaxWidth(0.46f)
+                                            .fillMaxWidth(0.54f)
                                             .height(56.dp)
                                     ) {
                                         Row(
@@ -478,7 +494,20 @@ fun LengthConversionScreen(
                                                 maxLines = 1,
                                                 modifier = Modifier
                                                     .weight(1f)
-                                                    .fillMaxHeight(),
+                                                    .fillMaxHeight()
+                                                    .combinedClickable(
+                                                        onLongClick = {
+                                                            if (fieldValue.isNotEmpty()) {
+                                                                clipboardManager.setText(
+                                                                    AnnotatedString(fieldValue)
+                                                                )
+                                                                hapticFeedback.performHapticFeedback(
+                                                                    HapticFeedbackType.LongPress
+                                                                )
+                                                            }
+                                                        },
+                                                        onClick = { /* Normal click handled by TextField */ }
+                                                    ),
                                                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                                                     textAlign = TextAlign.End,
                                                     fontWeight = FontWeight.Medium

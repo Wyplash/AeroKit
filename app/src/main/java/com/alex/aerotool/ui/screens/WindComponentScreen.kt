@@ -28,7 +28,8 @@ import kotlin.math.*
 @Composable
 fun WindComponentScreen(
     themeController: ThemeController,
-    onBack: (() -> Unit)? = null
+    onBack: (() -> Unit)? = null,
+    onShowAircraftManager: () -> Unit = {}
 ) {
     val lang = themeController.language
     var showInfo by remember { mutableStateOf(false) }
@@ -203,42 +204,52 @@ fun WindComponentScreen(
                 )
                 Spacer(Modifier.width(8.dp))
                 // Aircraft Dropdown as OutlinedTextField
-                OutlinedTextField(
-                    value = selectedAircraft?.name ?: "Select Aircraft",
-                    onValueChange = {}, // not editable manually
-                    readOnly = true,
-                    enabled = true,
-                    label = { Text("Aircraft") },
-                    singleLine = true,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    visualTransformation = VisualTransformation.None,
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.Start),
-                    trailingIcon = {
-                        IconButton(
-                            onClick = { showAircraftDropdown = true },
-                            modifier = Modifier.padding(end = 2.dp)
-                        ) {
-                            Icon(Icons.Filled.ArrowDropDown, contentDescription = "Dropdown")
-                        }
-                    },
-                    // Add horizontal content padding to match label and text
-                    placeholder = null
-                )
-                DropdownMenu(
-                    expanded = showAircraftDropdown,
-                    onDismissRequest = { showAircraftDropdown = false }
-                ) {
-                    themeController.aircraftList.forEach { aircraft ->
-                        DropdownMenuItem(
-                            text = { Text("${aircraft.name} (${aircraft.crosswindLimit} kt)") },
-                            onClick = {
-                                selectedAircraft = aircraft
-                                showAircraftDropdown = false
+                if (themeController.aircraftList.isEmpty()) {
+                    Button(
+                        onClick = { onShowAircraftManager() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
+                    ) {
+                        Text("Add Aircraft")
+                    }
+                } else {
+                    OutlinedTextField(
+                        value = selectedAircraft?.name ?: "Select Aircraft",
+                        onValueChange = {}, // not editable manually
+                        readOnly = true,
+                        enabled = true,
+                        label = { Text("Aircraft") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                        shape = MaterialTheme.shapes.medium,
+                        visualTransformation = VisualTransformation.None,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.Start),
+                        trailingIcon = {
+                            IconButton(
+                                onClick = { showAircraftDropdown = true },
+                                modifier = Modifier.padding(end = 2.dp)
+                            ) {
+                                Icon(Icons.Filled.ArrowDropDown, contentDescription = "Dropdown")
                             }
-                        )
+                        },
+                        placeholder = null
+                    )
+                    DropdownMenu(
+                        expanded = showAircraftDropdown,
+                        onDismissRequest = { showAircraftDropdown = false }
+                    ) {
+                        themeController.aircraftList.forEach { aircraft ->
+                            DropdownMenuItem(
+                                text = { Text("${aircraft.name} (${aircraft.crosswindLimit} kt)") },
+                                onClick = {
+                                    selectedAircraft = aircraft
+                                    showAircraftDropdown = false
+                                }
+                            )
+                        }
                     }
                 }
             }

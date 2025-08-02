@@ -32,17 +32,23 @@ import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlin.math.absoluteValue
 import android.content.Context
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.AnnotatedString
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 
 import kotlin.math.round
 
@@ -52,9 +58,12 @@ data class PersistedSpeedUnitCard(val unitKey: String, val value: String)
 val Context.speedUnitCardsDataStore by preferencesDataStore("speed_unit_cards")
 val SPEED_UNIT_CARDS_KEY = stringPreferencesKey("speed_unit_cards")
 
-fun Double.roundMost(n: Int = 4): String =
-    if (n == 0) toInt().toString() else "%.${n}f".format(this).trim()
+fun Double.roundMost(n: Int = 4): String {
+    val precision = n.coerceIn(0, 9)
+    return if (precision == 0) toInt().toString() else "%.${precision}f".format(this).trim()
+}
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SpeedConversionScreen(
     themeController: ThemeController,
@@ -147,7 +156,10 @@ fun SpeedConversionScreen(
         setUnitCards(unitCards.mapIndexed { idx, card ->
             val def = unitDefs.first { it.key == card.unitKey }
             if (idx == fromIdx) card.copy(value = text)
-            else card.copy(value = if (text.isBlank()) "" else def.fromBase(base).roundMost(4))
+            else card.copy(
+                value = if (text.isBlank()) "" else def.fromBase(base)
+                    .roundMost(themeController.decimalPrecision)
+            )
         })
     }
 
@@ -162,7 +174,10 @@ fun SpeedConversionScreen(
             val baseDef = unitDefs.first { it.key == baseCard.unitKey }
             val base = baseDef.toBase(baseValue)
             val def = unitDefs.first { it.key == newKey }
-            UnitCard(newKey, if (baseCard.value.isBlank()) "" else def.fromBase(base).roundMost(4))
+            UnitCard(newKey,
+                if (baseCard.value.isBlank()) "" else def.fromBase(base)
+                    .roundMost(themeController.decimalPrecision)
+            )
         } else UnitCard(newKey, "")
         setUnitCards(unitCards + card)
         val idxToUpdate = unitCards.indexOfFirst { it.value.isNotBlank() }
@@ -424,7 +439,7 @@ fun SpeedConversionScreen(
                                 }
                                 Column(
                                     Modifier
-                                        .weight(2.2f)
+                                        .weight(1.8f)
                                         .padding(start = 12.dp, end = 2.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -461,9 +476,11 @@ fun SpeedConversionScreen(
                                     LaunchedEffect(card.value) {
                                         if (card.value != fieldValue) fieldValue = card.value
                                     }
+                                    val clipboardManager = LocalClipboardManager.current
+                                    val hapticFeedback = LocalHapticFeedback.current
                                     Box(
                                         Modifier
-                                            .fillMaxWidth(0.46f)
+                                            .fillMaxWidth(0.54f)
                                             .height(56.dp)
                                     ) {
                                         Row(
@@ -483,7 +500,20 @@ fun SpeedConversionScreen(
                                                 maxLines = 1,
                                                 modifier = Modifier
                                                     .weight(1f)
-                                                    .fillMaxHeight(),
+                                                    .fillMaxHeight()
+                                                    .combinedClickable(
+                                                        onLongClick = {
+                                                            if (fieldValue.isNotEmpty()) {
+                                                                clipboardManager.setText(
+                                                                    AnnotatedString(fieldValue)
+                                                                )
+                                                                hapticFeedback.performHapticFeedback(
+                                                                    HapticFeedbackType.LongPress
+                                                                )
+                                                            }
+                                                        },
+                                                        onClick = { /* Normal click handled by TextField */ }
+                                                    ),
                                                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                                                     textAlign = TextAlign.End,
                                                     fontWeight = FontWeight.Medium
